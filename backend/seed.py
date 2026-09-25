@@ -32,15 +32,15 @@ def run(force=False):
         return
 
     # Admin and Manager
-    admin = User.query.filter_by(email="pius@a-zmattresses.com").first()
+    admin = User.query.filter_by(email="admin@gaspos.com").first()
     if not admin:
-        admin = User(name="Pius Chege", email="pius@a-zmattresses.com", role="admin", is_verified=True)
+        admin = User(name="Admin User", email="admin@gaspos.com", role="admin", is_verified=True)
         admin.set_password("password123")
         db.session.add(admin)
         db.session.commit()
 
-    if not User.query.filter_by(email="manager@a-zmattresses.com").first():
-        m = User(name="Test Manager", email="manager@a-zmattresses.com", role="manager", is_verified=True)
+    if not User.query.filter_by(email="manager@gaspos.com").first():
+        m = User(name="Test Manager", email="manager@gaspos.com", role="manager", is_verified=True)
         m.set_password("manager123")
         db.session.add(m)
 
@@ -66,7 +66,7 @@ def run(force=False):
         shops[s_data["name"]] = shop
     
     # Categories and Items
-    categories_data = ["Mattress", "Pillow", "Duvet"]
+    categories_data = ["Gas Cylinders", "Gas Accessories"]
     categories = {}
     for c_name in categories_data:
         cat = Category.query.filter_by(name=c_name).first()

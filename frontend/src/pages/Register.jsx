@@ -62,7 +62,7 @@ export default function Register(){
             <UserPlus size={32} />
           </div>
           <h1 className="text-2xl md:text-3xl font-black text-gray-900 dark:text-white tracking-tight transition-colors">Create Account</h1>
-          <p className="text-sm md:text-base text-gray-500 dark:text-gray-400 font-medium mt-2 transition-colors px-4">Join our network of retail mattress shops</p>
+          <p className="text-sm md:text-base text-gray-500 dark:text-gray-400 font-medium mt-2 transition-colors px-4">Join our network of gas retailers</p>
         </div>
 
         <div className="bg-white dark:bg-gray-800 p-6 md:p-10 rounded-[2rem] md:rounded-[2.5rem] shadow-xl border border-gray-100 dark:border-gray-700 transition-colors">

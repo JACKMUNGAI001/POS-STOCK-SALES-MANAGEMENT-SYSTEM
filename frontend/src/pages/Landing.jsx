@@ -15,7 +15,7 @@ export default function Landing() {
           <div className="bg-blue-600 p-2 rounded-xl text-white shadow-lg shadow-blue-200">
             <Zap size={24} fill="currentColor" />
           </div>
-          <h1 className="text-xl md:text-2xl font-black text-gray-900 dark:text-white tracking-tight text-center sm:text-left">A-Z MATTRESSES AND GAS</h1>
+          <h1 className="text-xl md:text-2xl font-black text-gray-900 dark:text-white tracking-tight text-center sm:text-left">GAS POS SYSTEM</h1>
         </div>
         
         <div className="flex items-center space-x-4 md:space-x-6">
@@ -49,7 +49,7 @@ export default function Landing() {
         </h1>
 
         <p className="text-gray-500 dark:text-gray-400 mt-8 max-w-2xl text-lg md:text-xl font-medium leading-relaxed">
-          The all-in-one platform for mattresses and gas businesses to track every sale, 
+          The all-in-one platform for gas businesses to track every sale, 
           manage stock across multiple shops, and analyze profits in real-time.
         </p>
 

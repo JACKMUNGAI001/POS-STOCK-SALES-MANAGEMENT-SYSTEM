@@ -1,1 +1,1 @@
-# A-Z-MATTRESSES-STOCK-SALES-MANAGEMENT-SYSTEM
+# Gas POS System - Stock & Sales Management

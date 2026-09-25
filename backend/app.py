@@ -28,7 +28,7 @@ def create_app():
     # Home route to stop 404s
     @app.route("/")
     def home():
-        return jsonify({"message": "Welcome to A-Z Mattresses and Gas API"}), 200
+        return jsonify({"message": "Welcome to Gas POS System API"}), 200
 
     @app.after_request
     def handle_options_request(response):

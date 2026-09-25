@@ -129,7 +129,7 @@ export default function AdminItems() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6">
               <div className="md:col-span-2">
                 <label className="block text-sm font-bold text-gray-700 dark:text-gray-400 uppercase mb-1 px-1 transition-colors">Product Name</label>
-                <input name="name" className="w-full p-3 border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none font-bold transition-all" value={formData.name} onChange={handleInputChange} placeholder="e.g. Super Soft Mattress" />
+                <input name="name" className="w-full p-3 border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none font-bold transition-all" value={formData.name} onChange={handleInputChange} placeholder="e.g. 13kg Gas Cylinder" />
               </div>
               <div className="md:col-span-2">
                 <label className="block text-sm font-bold text-gray-700 dark:text-gray-400 uppercase mb-1 px-1 transition-colors">Category</label>

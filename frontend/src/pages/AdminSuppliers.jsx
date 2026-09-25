@@ -228,7 +228,7 @@ export default function AdminSuppliers() {
                         className="w-full border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none transition-all text-sm"
                         value={formData.name}
                         onChange={e => setFormData({...formData, name: e.target.value})}
-                        placeholder="e.g. Super Mattresses Ltd"
+                        placeholder="e.g. Gas Suppliers Ltd"
                         />
                     </div>
                     <div>

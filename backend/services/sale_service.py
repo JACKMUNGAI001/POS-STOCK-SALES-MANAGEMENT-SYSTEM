@@ -85,7 +85,7 @@ def _generate_sale_receipt_html(sale, shop, attendant, sale_items):
     <!DOCTYPE html>
     <html>
     <head>
-        <title>A-Z MATTRESSES AND GAS - Receipt</title>
+        <title>GAS POS SYSTEM - Receipt</title>
         <style>
             body {{ font-family: sans-serif; }}
             .receipt-container {{ width: 300px; margin: auto; border: 1px solid #ccc; padding: 10px; }}
@@ -98,7 +98,7 @@ def _generate_sale_receipt_html(sale, shop, attendant, sale_items):
     <body>
         <div class="receipt-container">
             <div class="header">
-                <h1 style="color: #1a56db; font-size: 28px; font-weight: 900; margin-bottom: 2px;">A-Z MATTRESSES AND GAS</h1>
+                <h1 style="color: #1a56db; font-size: 28px; font-weight: 900; margin-bottom: 2px;">GAS POS SYSTEM</h1>
                 <p style="margin: 0; font-weight: bold; font-size: 16px;">{shop.name}</p>
                 <p style="margin-top: 5px; font-size: 12px; font-weight: 800; border-top: 1px solid #000; padding-top: 5px; display: inline-block;">OFFICIAL SALE RECEIPT</p>
             </div>
