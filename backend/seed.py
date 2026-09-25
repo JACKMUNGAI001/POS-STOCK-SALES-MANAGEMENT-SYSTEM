@@ -9,6 +9,7 @@ from models.product import Category, Item
 app = create_app()
 app.app_context().push()
 
+
 def database_has_initial_data():
     """Return whether this database has already been set up by a user.
 
@@ -23,6 +24,45 @@ def database_has_initial_data():
     ))
 
 
+def clear_database():
+    """Clear all data from the database."""
+    # Delete in order to respect foreign keys
+    from models.sale import Sale, SaleItem, SalePayment
+    from models.deposit import DepositSale, DepositPayment
+    from models.stock import ShopStock, StockMovement, StockBatch, EmptyCylinderStock, SaleCylinderReturn
+    from models.transfer import Transfer, TransferItem
+    from models.expense import Expense
+    from models.supplier import Supplier, SupplierInvoice, SupplierInvoiceItem, supplier_items
+    from models.receipt import Receipt
+    from models.notification import Notification
+
+    db.session.query(SalePayment).delete()
+    db.session.query(SaleItem).delete()
+    db.session.query(Sale).delete()
+    db.session.query(DepositPayment).delete()
+    db.session.query(DepositSale).delete()
+    db.session.query(SaleCylinderReturn).delete()
+    db.session.query(EmptyCylinderStock).delete()
+    db.session.query(StockMovement).delete()
+    db.session.query(StockBatch).delete()
+    db.session.query(ShopStock).delete()
+    db.session.query(TransferItem).delete()
+    db.session.query(Transfer).delete()
+    db.session.query(Expense).delete()
+    db.session.query(SupplierInvoiceItem).delete()
+    db.session.query(SupplierInvoice).delete()
+    db.session.execute(supplier_items.delete())
+    db.session.query(Supplier).delete()
+    db.session.query(Receipt).delete()
+    db.session.query(Notification).delete()
+    db.session.query(Item).delete()
+    db.session.query(Category).delete()
+    db.session.query(User).delete()
+    db.session.query(Shop).delete()
+    db.session.commit()
+    print("Database cleared.")
+
+
 def run(force=False):
     if database_has_initial_data() and not force:
         print(
@@ -30,6 +70,10 @@ def run(force=False):
             "shop and user changes are preserved."
         )
         return
+
+    # Clear existing data if forcing
+    if force:
+        clear_database()
 
     # Admin and Manager
     admin = User.query.filter_by(email="admin@gaspos.com").first()
@@ -44,17 +88,9 @@ def run(force=False):
         m.set_password("manager123")
         db.session.add(m)
 
-    # Shops
+    # Shops - Only UMOJA
     shops_data = [
         {"name": "UMOJA", "address": "Nairobi"},
-        {"name": "MUTINDWA", "address": "Nairobi"},
-        {"name": "KABATI", "address": "Muranga"},
-        {"name": "JUDAH", "address": "Nairobi"},
-        {"name": "NDARACHA", "address": "Nairobi"},
-        {"name": "KENOL", "address": "Muranga"},
-        {"name": "UNITY", "address": "Nairobi"},
-        {"name": "JESKA", "address": "Nairobi"},
-        {"name": "RUIRU", "address": "Kiambu"}
     ]
     shops = {}
     for s_data in shops_data:
@@ -64,7 +100,7 @@ def run(force=False):
             db.session.add(shop)
             db.session.commit()
         shops[s_data["name"]] = shop
-    
+
     # Categories and Items
     categories_data = ["Gas Cylinders", "Gas Accessories"]
     categories = {}
@@ -77,7 +113,7 @@ def run(force=False):
         categories[c_name] = cat
 
     db.session.commit()
-    print("Seeded admin, shops, and categories.")
+    print("Seeded admin, UMOJA shop, and categories.")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Bootstrap a new development database.")
