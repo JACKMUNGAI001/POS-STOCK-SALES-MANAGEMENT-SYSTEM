@@ -66,7 +66,12 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <AuthProvider>
       <ThemeProvider>
         <SearchProvider>
-          <BrowserRouter>
+          <BrowserRouter
+            future={{
+              v7_startTransition: true,
+              v7_relativeSplatPath: true
+            }}
+          >
             <Suspense fallback={<LoadingFallback />}>
               <Routes>
 
