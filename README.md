@@ -1,6 +1,6 @@
 # Gas POS System - Stock & Sales Management
 
-A modern, mobile-first Point of Sale system for gas cylinder businesses. Built with React, Flask, and PostgreSQL (Supabase).
+A modern, mobile-first Point of Sale system for gas cylinder businesses. Built with React, Flask, and PostgreSQL (Neon or Supabase).
 
 ## Features
 
@@ -21,7 +21,7 @@ A modern, mobile-first Point of Sale system for gas cylinder businesses. Built w
 |-------|------------|
 | Frontend | React 18, Vite, Tailwind CSS, React Router |
 | Backend | Flask, SQLAlchemy, Flask-JWT-Extended |
-| Database | PostgreSQL (Supabase) |
+| Database | PostgreSQL (Neon or Supabase) |
 | Auth | JWT with HttpOnly cookies |
 | Deployment | Vercel (Frontend), Render/Railway (Backend) |
 
@@ -53,18 +53,18 @@ Visit `http://localhost:5173` - Login with:
 - **Admin**: `admin@gaspos.com` / `password123`
 - **Manager**: `manager@gaspos.com` / `manager123`
 
-## Supabase Deployment
+## Deployment
 
-See [SUPABASE_DEPLOYMENT.md](SUPABASE_DEPLOYMENT.md) for complete deployment guide.
+For Neon PostgreSQL with the existing Render backend and frontend services, see [NEON_DEPLOYMENT.md](NEON_DEPLOYMENT.md). The existing Supabase instructions remain in [SUPABASE_DEPLOYMENT.md](SUPABASE_DEPLOYMENT.md).
 
-### Quick Deploy Steps
+### Quick Deploy Steps (Neon)
 
-1. **Create Supabase Project** → Get connection string
-2. **Deploy Backend** (Render/Railway/Fly.io):
-   - Set `DATABASE_URL` to Supabase connection string
+1. **Create a Neon project** → Copy its PostgreSQL connection string
+2. **Deploy Backend** (Render):
+   - Set `DATABASE_URL` to the Neon connection string
    - Set `SECRET_KEY`, `JWT_SECRET_KEY`, `FRONTEND_URL`
-   - Run `flask db upgrade` and `python seed.py --force`
-3. **Deploy Frontend** (Vercel/Netlify):
+   - Run `flask db upgrade`, then `python seed.py` only for a new database
+3. **Deploy Frontend** (Render or Vercel):
    - Set `VITE_API_BASE_URL` to your backend URL
 4. **Configure CORS** - Ensure `FRONTEND_URL` matches your frontend domain
 
