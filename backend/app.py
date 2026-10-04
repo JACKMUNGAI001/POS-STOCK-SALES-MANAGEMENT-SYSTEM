@@ -3,6 +3,7 @@ from config import Config
 from extensions import db, migrate, jwt, cors
 from models.sale import ensure_sale_type_column, ensure_cylinder_schema
 
+
 def create_app():
     app = Flask(__name__, static_folder=None)
     app.config.from_object(Config)
@@ -11,9 +12,15 @@ def create_app():
     db.init_app(app)
     migrate.init_app(app, db)
     jwt.init_app(app)
+
     with app.app_context():
+        # Ensure all model modules are imported so SQLAlchemy knows about every
+        # table before we create the schema or run compatibility patches.
+        import models  # noqa: F401
+        db.create_all()
         ensure_sale_type_column()
         ensure_cylinder_schema()
+
     cors.init_app(app, resources={r"/*": {"origins": "*"}})
 
     # Register routes
