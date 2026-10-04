@@ -1,43 +1,51 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import api from '../api/api'
 import { useNavigate, Link } from 'react-router-dom'
 import { UserPlus, Mail, Lock, Store, User, ArrowLeft, Zap, Eye, EyeOff, Loader2 } from 'lucide-react'
-import SearchableSelect from '../components/SearchableSelect'
 
 export default function Register(){
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [role, setRole] = useState('admin')
+  const [tenantName, setTenantName] = useState('')
+  const [tenantSlug, setTenantSlug] = useState('')
   const [showPassword, setShowPassword] = useState(false)
-  const [shopId, setShopId] = useState('')
-  const [shops, setShops] = useState([])
   const [loading, setLoading] = useState(false)
   const [msg, setMsg] = useState('')
   const navigate = useNavigate()
 
-  useEffect(() => {
-    const fetchShops = async () => {
-      try {
-        const response = await api.get('/shops')
-        setShops(response.data)
-      } catch (err) {
-        setMsg(err.response?.data?.msg || 'Error fetching shops')
-      }
-    }
-    fetchShops()
-  }, [])
-
   const submit = async (e) => {
     e.preventDefault()
-    if (!shopId) {
-      setMsg('Please select an assigned shop')
+
+    if (role === 'admin' && (!tenantName || !tenantSlug)) {
+      setMsg('Please provide your business name and business slug')
       return
     }
+
+    if (role !== 'admin' && !tenantSlug) {
+      setMsg('Please provide the business slug you are joining')
+      return
+    }
+
     setLoading(true)
     setMsg('')
+
     try{
-      await api.post('/auth/register', { name, email, password, shop_id: shopId })
-      alert('Registration successful. Your account is pending admin verification.')
+      const payload = { name, email, password, role }
+
+      if (role === 'admin') {
+        payload.tenant_name = tenantName
+        payload.tenant_slug = tenantSlug
+      } else {
+        payload.tenant_slug = tenantSlug
+      }
+
+      await api.post('/auth/register', payload)
+      const message = role === 'admin'
+        ? 'Business created. You can now log in to your business dashboard.'
+        : 'Registration successful. Your account is pending admin verification.'
+      alert(message)
       navigate('/login')
     }catch(err){
       setMsg(err.response?.data?.msg || 'Registration failed')
@@ -124,19 +132,64 @@ export default function Register(){
               </div>
             </div>
 
-            <div>
-              <label className="block text-xs font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] mb-2 px-1">Assigned Shop</label>
-              <div className="relative">
-                <Store className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 z-10" size={20} />
-                <SearchableSelect
-                  options={shops}
-                  value={shopId}
-                  onChange={(e) => setShopId(e.target.value)}
-                  placeholder="Select Shop..."
-                  className="pl-10"
-                />
-              </div>
+            <div className="md:col-span-2">
+              <label className="block text-xs font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] mb-2 px-1">Register As</label>
+              <select
+                value={role}
+                onChange={(e) => setRole(e.target.value)}
+                className="w-full px-4 py-4 border border-gray-200 dark:border-gray-700 rounded-2xl bg-gray-50 dark:bg-gray-900 focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-gray-900 outline-none font-bold text-gray-900 dark:text-white transition-all"
+              >
+                <option value="admin">Admin (create my business)</option>
+                <option value="manager">Manager</option>
+                <option value="attendant">Attendant</option>
+              </select>
             </div>
+
+            {role === 'admin' ? (
+              <>
+                <div className="md:col-span-2">
+                  <label className="block text-xs font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] mb-2 px-1">Business Name</label>
+                  <div className="relative">
+                    <Store className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                    <input
+                      className="w-full pl-12 pr-4 py-4 border border-gray-200 dark:border-gray-700 rounded-2xl bg-gray-50 dark:bg-gray-900 focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-gray-900 outline-none font-bold text-gray-900 dark:text-white transition-all placeholder:text-gray-400 dark:placeholder:text-gray-600"
+                      value={tenantName}
+                      onChange={e => setTenantName(e.target.value)}
+                      placeholder="Acme Gas Business"
+                      required={role === 'admin'}
+                    />
+                  </div>
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="block text-xs font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] mb-2 px-1">Business Slug</label>
+                  <div className="relative">
+                    <Store className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                    <input
+                      className="w-full pl-12 pr-4 py-4 border border-gray-200 dark:border-gray-700 rounded-2xl bg-gray-50 dark:bg-gray-900 focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-gray-900 outline-none font-bold text-gray-900 dark:text-white transition-all placeholder:text-gray-400 dark:placeholder:text-gray-600"
+                      value={tenantSlug}
+                      onChange={e => setTenantSlug(e.target.value)}
+                      placeholder="acme-gas-business"
+                      required={role === 'admin'}
+                    />
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="md:col-span-2">
+                <label className="block text-xs font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] mb-2 px-1">Business Slug</label>
+                <div className="relative">
+                  <Store className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                  <input
+                    className="w-full pl-12 pr-4 py-4 border border-gray-200 dark:border-gray-700 rounded-2xl bg-gray-50 dark:bg-gray-900 focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-gray-900 outline-none font-bold text-gray-900 dark:text-white transition-all placeholder:text-gray-400 dark:placeholder:text-gray-600"
+                    value={tenantSlug}
+                    onChange={e => setTenantSlug(e.target.value)}
+                    placeholder="business-slug"
+                    required={role !== 'admin'}
+                  />
+                </div>
+              </div>
+            )}
 
             <button 
               disabled={loading}

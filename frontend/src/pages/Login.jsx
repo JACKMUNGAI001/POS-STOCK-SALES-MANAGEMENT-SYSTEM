@@ -1,12 +1,13 @@
-import React, { useState, useContext, useEffect } from 'react'
+import React, { useState, useContext } from 'react'
 import api from '../api/api'
 import { useNavigate, Link } from 'react-router-dom'
 import { AuthContext } from '../context/AuthContext'
-import { Mail, Lock, LogIn, ArrowLeft, Zap, Eye, EyeOff, Loader2 } from 'lucide-react'
+import { Mail, Lock, LogIn, ArrowLeft, Zap, Eye, EyeOff, Loader2, Store } from 'lucide-react'
 
 export default function Login(){
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [tenantSlug, setTenantSlug] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [msg, setMsg] = useState('')
@@ -18,7 +19,10 @@ export default function Login(){
     setLoading(true)
     setMsg('')
     try{
-      const res = await api.post('/auth/login', { email, password })
+      const payload = { email, password }
+      if (tenantSlug.trim()) payload.tenant_slug = tenantSlug.trim()
+
+      const res = await api.post('/auth/login', payload)
       const { access_token, user } = res.data
       localStorage.setItem('token', access_token)
       setUser(user)
@@ -72,6 +76,20 @@ export default function Login(){
                   required
                 />
               </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] mb-2 px-1">Business Slug</label>
+              <div className="relative">
+                <Store className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                <input 
+                  className="w-full pl-12 pr-4 py-4 border border-gray-200 dark:border-gray-700 rounded-2xl bg-gray-50 dark:bg-gray-900 focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-gray-900 outline-none font-bold text-gray-900 dark:text-white transition-all placeholder:text-gray-400 dark:placeholder:text-gray-600" 
+                  placeholder="your-business-slug"
+                  value={tenantSlug}
+                  onChange={(e)=>setTenantSlug(e.target.value)}
+                />
+              </div>
+              <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">Use the business slug created by your admin.</p>
             </div>
 
             <div>

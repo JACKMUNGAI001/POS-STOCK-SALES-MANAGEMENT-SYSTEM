@@ -5,12 +5,15 @@ load_dotenv()
 
 class Config:
     SECRET_KEY = os.getenv("SECRET_KEY", "change-me")
-    
+
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    default_sqlite_path = os.path.join(base_dir, "instance", "dev.db")
+
     # Handle Render/Heroku postgres:// vs postgresql:// for SQLAlchemy 2.0+
-    db_url = os.getenv("DATABASE_URL", "sqlite:///dev.db")
+    db_url = os.getenv("DATABASE_URL", f"sqlite:///{default_sqlite_path}")
     if db_url.startswith("postgres://"):
         db_url = db_url.replace("postgres://", "postgresql://", 1)
-    
+
     SQLALCHEMY_DATABASE_URI = db_url
     # ``sslmode`` is a PostgreSQL driver option; passing it to SQLite prevents
     # local development and migration tests from opening the database.

@@ -5,12 +5,15 @@ from extensions import db
 from flask_jwt_extended import get_jwt_identity
 
 def list_items_controller():
+    user_identity = get_jwt_identity() or {}
+    tenant_id = user_identity.get("tenant_id")
     items = list_items()
-    user_identity = get_jwt_identity()
+    if tenant_id is not None:
+        items = [it for it in items if getattr(it, "tenant_id", None) == tenant_id]
     user_role = user_identity.get("role")
     
     category_ids = {it.category_id for it in items if it.category_id}
-    categories = {c.id: c for c in Category.query.filter(Category.id.in_(category_ids)).all()} if category_ids else {}
+    categories = {c.id: c for c in Category.query.filter(Category.id.in_(category_ids), Category.tenant_id == tenant_id).all()} if category_ids else {}
     
     out = []
     for it in items:
@@ -32,27 +35,40 @@ def create_item_controller():
     data = request.get_json() or {}
     name = data.get("name")
     category_id = data.get("category_id")
+    identity = get_jwt_identity() or {}
+    tenant_id = identity.get("tenant_id")
     if not all([name, category_id]):
         return jsonify({"msg":"name and category_id required"}), 400
-    it = create_item(name, category_id, sku=data.get("sku"), brand=data.get("brand"), description=data.get("description"))
+    if tenant_id is None:
+        return jsonify({"msg":"tenant_id required"}), 400
+    it = create_item(name, category_id, sku=data.get("sku"), brand=data.get("brand"), description=data.get("description"), tenant_id=tenant_id)
     return jsonify({"id":it.id,"name":it.name}), 201
 
 def list_categories_controller():
-    categories = Category.query.order_by(Category.name.asc()).all()
+    identity = get_jwt_identity() or {}
+    tenant_id = identity.get("tenant_id")
+    query = Category.query
+    if tenant_id is not None:
+        query = query.filter_by(tenant_id=tenant_id)
+    categories = query.order_by(Category.name.asc()).all()
     out = [{"id":c.id,"name":c.name} for c in categories]
     return jsonify(out), 200
 
 def create_category_controller():
     data = request.get_json() or {}
     name = data.get("name")
+    identity = get_jwt_identity() or {}
+    tenant_id = identity.get("tenant_id")
     if not name:
         return jsonify({"msg": "Category name is required"}), 400
+    if tenant_id is None:
+        return jsonify({"msg": "tenant_id required"}), 400
     
-    existing = Category.query.filter_by(name=name).first()
+    existing = Category.query.filter_by(name=name, tenant_id=tenant_id).first()
     if existing:
         return jsonify({"msg": "Category already exists"}), 400
         
-    category = Category(name=name)
+    category = Category(name=name, tenant_id=tenant_id)
     db.session.add(category)
     db.session.commit()
     return jsonify({"id": category.id, "name": category.name}), 201

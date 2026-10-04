@@ -5,6 +5,7 @@ from utils.timezone_utils import get_local_time
 class Expense(db.Model):
     __tablename__ = "expenses"
     id = db.Column(db.Integer, primary_key=True)
+    tenant_id = db.Column(db.Integer, db.ForeignKey("tenants.id"), nullable=True, index=True)
     shop_id = db.Column(db.Integer, nullable=True, index=True)  # null = global
     title = db.Column(db.String(255))
     amount = db.Column(db.Numeric(12,2))

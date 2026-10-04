@@ -1,4 +1,5 @@
 # Import models to register with SQLAlchemy
+from .tenant import Tenant
 from .user import User
 from .shop import Shop
 from .product import Category, Item

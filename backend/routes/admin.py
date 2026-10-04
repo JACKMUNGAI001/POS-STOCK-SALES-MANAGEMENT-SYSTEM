@@ -1,8 +1,16 @@
 from flask import Blueprint, request
-from controllers.admin_controller import pending_attendants, verify_attendant, list_all_attendants_controller, delete_attendant_controller, list_managers_controller, set_manager_restock_permission, my_restock_permission
+from controllers.admin_controller import pending_attendants, verify_attendant, list_all_attendants_controller, delete_attendant_controller, list_managers_controller, set_manager_restock_permission, my_restock_permission, create_tenant_controller
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
 bp = Blueprint("admin", __name__)
+
+@bp.route("/tenants", methods=["POST"])
+@jwt_required()
+def create_tenant():
+    identity = get_jwt_identity()
+    if identity.get("role") != "admin":
+        return {"msg": "admin only"}, 403
+    return create_tenant_controller(request.get_json() or {})
 
 @bp.route("/attendants/pending", methods=["GET"])
 @jwt_required()

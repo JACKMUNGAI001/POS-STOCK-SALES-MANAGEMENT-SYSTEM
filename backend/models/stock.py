@@ -5,6 +5,7 @@ from utils.timezone_utils import get_local_time
 class ShopStock(db.Model):
     __tablename__ = "shop_stocks"
     id = db.Column(db.Integer, primary_key=True)
+    tenant_id = db.Column(db.Integer, db.ForeignKey("tenants.id"), nullable=True, index=True)
     shop_id = db.Column(db.Integer, db.ForeignKey("shops.id"), nullable=False)
     item_id = db.Column(db.Integer, db.ForeignKey("items.id"), nullable=False)
     quantity = db.Column(db.Integer, default=0)
@@ -16,6 +17,7 @@ class ShopStock(db.Model):
 class StockBatch(db.Model):
     __tablename__ = "stock_batches"
     id = db.Column(db.Integer, primary_key=True)
+    tenant_id = db.Column(db.Integer, db.ForeignKey("tenants.id"), nullable=True, index=True)
     shop_id = db.Column(db.Integer, db.ForeignKey("shops.id"), nullable=False, index=True)
     item_id = db.Column(db.Integer, db.ForeignKey("items.id"), nullable=False, index=True)
     initial_qty = db.Column(db.Integer, nullable=False)
@@ -28,6 +30,7 @@ class StockBatch(db.Model):
 class StockMovement(db.Model):
     __tablename__ = "stock_movements"
     id = db.Column(db.Integer, primary_key=True)
+    tenant_id = db.Column(db.Integer, db.ForeignKey("tenants.id"), nullable=True, index=True)
     shop_id = db.Column(db.Integer)
     item_id = db.Column(db.Integer)
     movement_type = db.Column(db.String(50))  # purchase_in, sale, transfer_in, transfer_out, adjustment, reserve
@@ -41,6 +44,7 @@ class StockMovement(db.Model):
 class EmptyCylinderStock(db.Model):
     __tablename__ = "empty_cylinder_stocks"
     id = db.Column(db.Integer, primary_key=True)
+    tenant_id = db.Column(db.Integer, db.ForeignKey("tenants.id"), nullable=True, index=True)
     shop_id = db.Column(db.Integer, db.ForeignKey("shops.id"), nullable=False)
     item_id = db.Column(db.Integer, db.ForeignKey("items.id"), nullable=False)
     quantity = db.Column(db.Integer, nullable=False, default=0)
@@ -51,6 +55,7 @@ class SaleCylinderReturn(db.Model):
     """The cylinder exchange recorded for each gas item on a sale."""
     __tablename__ = "sale_cylinder_returns"
     id = db.Column(db.Integer, primary_key=True)
+    tenant_id = db.Column(db.Integer, db.ForeignKey("tenants.id"), nullable=True, index=True)
     sale_id = db.Column(db.Integer, db.ForeignKey("sales.id"), nullable=False, index=True)
     item_id = db.Column(db.Integer, db.ForeignKey("items.id"), nullable=False, index=True)
     sold_qty = db.Column(db.Integer, nullable=False)

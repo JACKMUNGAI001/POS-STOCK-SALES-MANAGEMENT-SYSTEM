@@ -7,6 +7,7 @@ class Shop(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(255), nullable=False)
     address = db.Column(db.Text)
+    tenant_id = db.Column(db.Integer, db.ForeignKey("tenants.id"), nullable=True, index=True)
     created_at = db.Column(db.DateTime, default=get_local_time)
 
     attendants = db.relationship("User", backref="shop", lazy=True)

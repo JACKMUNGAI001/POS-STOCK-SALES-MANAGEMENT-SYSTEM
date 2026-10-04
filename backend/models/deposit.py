@@ -6,6 +6,7 @@ from utils.timezone_utils import get_local_time
 class DepositSale(db.Model):
     __tablename__ = "deposit_sales"
     id = db.Column(db.Integer, primary_key=True)
+    tenant_id = db.Column(db.Integer, db.ForeignKey("tenants.id"), nullable=True, index=True)
     uuid = db.Column(db.String(64), default=lambda: str(uuid.uuid4()), unique=True)
     shop_id = db.Column(db.Integer, index=True)
     item_id = db.Column(db.Integer, db.ForeignKey("items.id"))
@@ -22,6 +23,7 @@ class DepositSale(db.Model):
 class DepositPayment(db.Model):
     __tablename__ = "deposit_payments"
     id = db.Column(db.Integer, primary_key=True)
+    tenant_id = db.Column(db.Integer, db.ForeignKey("tenants.id"), nullable=True, index=True)
     deposit_id = db.Column(db.Integer, db.ForeignKey("deposit_sales.id"))
     amount = db.Column(db.Numeric(12,2))
     payment_method = db.Column(db.String(50))

@@ -1,13 +1,29 @@
 from flask import jsonify, request
 from models.user import User
 from models.shop import Shop
+from models.tenant import Tenant
 from extensions import db
 from sqlalchemy.orm import joinedload
+from services.tenant_service import create_tenant
+
+
+def create_tenant_controller(data):
+    name = (data or {}).get("name")
+    slug = (data or {}).get("slug")
+    if not name:
+        return jsonify({"msg": "tenant name required"}), 400
+    try:
+        tenant = create_tenant(name, slug=slug)
+    except ValueError as exc:
+        return jsonify({"msg": str(exc)}), 400
+    return jsonify({"id": tenant.id, "name": tenant.name, "slug": tenant.slug}), 201
+
 
 def pending_attendants(identity):
     if identity.get("role") != "admin":
         return jsonify({"msg":"admin only"}), 403
-    users = User.query.filter_by(role="attendant", is_verified=False).order_by(User.name.asc()).all()
+    tenant_id = identity.get("tenant_id")
+    users = User.query.filter_by(role="attendant", is_verified=False, tenant_id=tenant_id).order_by(User.name.asc()).all()
     out = [{"id":u.id,"name":u.name,"email":u.email,"created_at":u.created_at.isoformat()} for u in users]
     return jsonify(out), 200
 
@@ -23,7 +39,8 @@ def verify_attendant(user_id, data):
 def list_all_attendants_controller(identity):
     if identity.get("role") != "admin":
         return jsonify({"msg":"admin only"}), 403
-    attendants = User.query.filter_by(role="attendant").options(joinedload(User.shop)).order_by(User.name.asc()).all()
+    tenant_id = identity.get("tenant_id")
+    attendants = User.query.filter_by(role="attendant", tenant_id=tenant_id).options(joinedload(User.shop)).order_by(User.name.asc()).all()
     out = []
     for att in attendants:
         shop_name = None

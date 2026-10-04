@@ -7,6 +7,7 @@ from utils.timezone_utils import get_local_time
 class Sale(db.Model):
     __tablename__ = "sales"
     id = db.Column(db.Integer, primary_key=True)
+    tenant_id = db.Column(db.Integer, db.ForeignKey("tenants.id"), nullable=True, index=True)
     shop_id = db.Column(db.Integer, index=True)
     user_id = db.Column(db.Integer)
     total_amount = db.Column(db.Numeric(12,2))
@@ -85,6 +86,7 @@ def ensure_cylinder_schema():
 class SaleItem(db.Model):
     __tablename__ = "sale_items"
     id = db.Column(db.Integer, primary_key=True)
+    tenant_id = db.Column(db.Integer, db.ForeignKey("tenants.id"), nullable=True, index=True)
     sale_id = db.Column(db.Integer, db.ForeignKey("sales.id"))
     item_id = db.Column(db.Integer)
     qty = db.Column(db.Integer)
