@@ -80,12 +80,14 @@ export default function Register(){
             </div>
           )}
 
-          <form onSubmit={submit} className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <form onSubmit={submit} autoComplete="on" className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="md:col-span-2">
               <label className="block text-xs font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] mb-2 px-1">Full Name</label>
               <div className="relative">
                 <User className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
                 <input 
+                  name="name"
+                  autoComplete="name"
                   className="w-full pl-12 pr-4 py-4 border border-gray-200 dark:border-gray-700 rounded-2xl bg-gray-50 dark:bg-gray-900 focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-gray-900 outline-none font-bold text-gray-900 dark:text-white transition-all placeholder:text-gray-400 dark:placeholder:text-gray-600" 
                   value={name} 
                   onChange={e=>setName(e.target.value)} 
@@ -101,6 +103,8 @@ export default function Register(){
                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
                 <input 
                   type="email"
+                  name="email"
+                  autoComplete="email"
                   className="w-full pl-12 pr-4 py-4 border border-gray-200 dark:border-gray-700 rounded-2xl bg-gray-50 dark:bg-gray-900 focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-gray-900 outline-none font-bold text-gray-900 dark:text-white transition-all placeholder:text-gray-400 dark:placeholder:text-gray-600" 
                   value={email} 
                   onChange={e=>setEmail(e.target.value)} 
@@ -116,6 +120,8 @@ export default function Register(){
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
                 <input 
                   type={showPassword ? 'text' : 'password'} 
+                  name="password"
+                  autoComplete="new-password"
                   className="w-full pl-12 pr-12 py-4 border border-gray-200 dark:border-gray-700 rounded-2xl bg-gray-50 dark:bg-gray-900 focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-gray-900 outline-none font-bold text-gray-900 dark:text-white transition-all placeholder:text-gray-400 dark:placeholder:text-gray-600" 
                   value={password} 
                   onChange={e=>setPassword(e.target.value)} 
@@ -152,6 +158,8 @@ export default function Register(){
                   <div className="relative">
                     <Store className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
                     <input
+                      name="organization"
+                      autoComplete="organization"
                       className="w-full pl-12 pr-4 py-4 border border-gray-200 dark:border-gray-700 rounded-2xl bg-gray-50 dark:bg-gray-900 focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-gray-900 outline-none font-bold text-gray-900 dark:text-white transition-all placeholder:text-gray-400 dark:placeholder:text-gray-600"
                       value={tenantName}
                       onChange={e => setTenantName(e.target.value)}
@@ -166,6 +174,9 @@ export default function Register(){
                   <div className="relative">
                     <Store className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
                     <input
+                      name="tenant_slug"
+                      autoComplete="off"
+                      spellCheck={false}
                       className="w-full pl-12 pr-4 py-4 border border-gray-200 dark:border-gray-700 rounded-2xl bg-gray-50 dark:bg-gray-900 focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-gray-900 outline-none font-bold text-gray-900 dark:text-white transition-all placeholder:text-gray-400 dark:placeholder:text-gray-600"
                       value={tenantSlug}
                       onChange={e => setTenantSlug(e.target.value)}
@@ -181,6 +192,9 @@ export default function Register(){
                 <div className="relative">
                   <Store className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
                   <input
+                    name="tenant_slug"
+                    autoComplete="off"
+                    spellCheck={false}
                     className="w-full pl-12 pr-4 py-4 border border-gray-200 dark:border-gray-700 rounded-2xl bg-gray-50 dark:bg-gray-900 focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-gray-900 outline-none font-bold text-gray-900 dark:text-white transition-all placeholder:text-gray-400 dark:placeholder:text-gray-600"
                     value={tenantSlug}
                     onChange={e => setTenantSlug(e.target.value)}
