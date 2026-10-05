@@ -4,7 +4,7 @@ import Card from '../components/Card'
 import { AuthContext } from '../context/AuthContext'
 import { SearchContext } from '../context/SearchContext'
 import api from '../api/api'
-import { Store, TrendingUp, Users, SearchX, MapPin, CreditCard } from 'lucide-react'
+import { Store, TrendingUp, SearchX, MapPin, CreditCard } from 'lucide-react'
 import TransferCardLink from '../components/TransferCardLink'
 
 export default function ManagerDashboard(){
@@ -12,8 +12,6 @@ export default function ManagerDashboard(){
   const { searchQuery, searchType } = useContext(SearchContext)
   const [globalStock, setGlobalStock] = useState([]);
   const [salesSummary, setSalesSummary] = useState(null);
-  const [depositsSummary, setDepositsSummary] = useState(null);
-  const [depositCustomersCount, setDepositCustomersCount] = useState(0);
   const [shops, setShops] = useState([]);
   const [stockSummary, setStockSummary] = useState(null);
   const [canRestock, setCanRestock] = useState(false);
@@ -28,15 +26,11 @@ export default function ManagerDashboard(){
 
     const fetchDashboardData = async () => {
         try {
-            const [salesRes, depositsRes, depositCustomersResponse, stockSummaryRes] = await Promise.all([
+            const [salesRes, stockSummaryRes] = await Promise.all([
               api.get('/reports/sales-summary'),
-              api.get('/reports/deposits-summary'),
-              api.get('/deposits/customers_count'),
               api.get('/reports/stock-summary'),
             ]);
             setSalesSummary(salesRes.data);
-            setDepositsSummary(depositsRes.data);
-            setDepositCustomersCount(depositCustomersResponse.data.count);
             setStockSummary(stockSummaryRes.data);
 
         } catch (err) {
@@ -156,18 +150,6 @@ export default function ManagerDashboard(){
               </div>
             </Link>
             <Link
-              to="/deposits"
-              className="flex-1 bg-indigo-600 text-white p-6 rounded-2xl shadow-lg shadow-indigo-100 dark:shadow-none hover:bg-indigo-700 hover:-translate-y-1 transition-all flex flex-col items-center justify-center gap-3 text-center group no-underline"
-            >
-              <div className="bg-white/20 p-3 rounded-xl group-hover:scale-110 transition-transform">
-                <Users size={28} />
-              </div>
-              <div>
-                <span className="block text-lg font-black uppercase tracking-tight">New Deposit</span>
-                <span className="text-indigo-100 text-xs font-medium">Open lay-by account</span>
-              </div>
-            </Link>
-            <Link
               to="/pos/credit"
               className="flex-1 bg-amber-600 text-white p-6 rounded-2xl shadow-lg shadow-amber-100 dark:shadow-none hover:bg-amber-700 hover:-translate-y-1 transition-all flex flex-col items-center justify-center gap-3 text-center group no-underline"
             >
@@ -262,42 +244,6 @@ export default function ManagerDashboard(){
                 </Card>
             </Link>
           </div>
-        </div>
-
-        {/* DEPOSITS SUMMARY */}
-        <div className="mb-10">
-          <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-4 tracking-tight border-l-4 border-l-indigo-600 pl-3 text-sm uppercase tracking-widest text-gray-400 dark:text-gray-500 transition-colors">Global Deposit Collections</h3>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <Link to="/attendant/deposits/today" className="no-underline group">
-                <Card title="Today's" interactive={true}>
-                  {depositsSummary ? formatCurrency(depositsSummary.today) : '...'}
-                </Card>
-            </Link>
-            <Link to="/attendant/deposits/week" className="no-underline group">
-                <Card title="This Week's" interactive={true}>
-                  {depositsSummary ? formatCurrency(depositsSummary.week) : '...'}
-                </Card>
-            </Link>
-            <Link to="/attendant/deposits/month" className="no-underline group">
-                <Card title="This Month's" interactive={true}>
-                  {depositsSummary ? formatCurrency(depositsSummary.month) : '...'}
-                </Card>
-            </Link>
-            <Link to="/attendant/deposits/year" className="no-underline group">
-                <Card title="This Year's" interactive={true}>
-                  {depositsSummary ? formatCurrency(depositsSummary.year) : '...'}
-                </Card>
-            </Link>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
-          <Link to="/attendant/deposits" className="no-underline group">
-              <Card title="Global Active Deposit Accounts" interactive={true} className="border-l-4 border-l-indigo-500 flex justify-between items-center">
-                <span>{depositCustomersCount} Active Deposit Accounts</span>
-                <Users className="text-indigo-200 dark:text-indigo-900/30 group-hover:text-indigo-400 dark:group-hover:text-indigo-500 transition-colors" size={40} />
-              </Card>
-          </Link>
         </div>
 
         {/* TRANSFER HISTORY */}

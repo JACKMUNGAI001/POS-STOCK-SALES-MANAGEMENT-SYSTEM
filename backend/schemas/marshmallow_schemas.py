@@ -41,22 +41,3 @@ class SaleSchema(Schema):
     profit_amount = fields.Float()
     items = fields.Nested(SaleItemSchema, many=True)
     created_at = fields.DateTime()
-
-class DepositPaymentSchema(Schema):
-    id = fields.Int()
-    deposit_id = fields.Int()
-    amount = fields.Float()
-    payment_method = fields.Str()
-    recorded_by = fields.Int()
-    paid_on = fields.DateTime()
-
-class DepositSchema(Schema):
-    id = fields.Int()
-    uuid = fields.Str()
-    shop_id = fields.Int()
-    item_id = fields.Int()
-    buyer_name = fields.Str()
-    buyer_phone = fields.Str()
-    selling_price = fields.Float()
-    status = fields.Str()
-    payments = fields.Nested(DepositPaymentSchema, many=True)

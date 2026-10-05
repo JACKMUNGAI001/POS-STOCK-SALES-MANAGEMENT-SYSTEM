@@ -6,7 +6,7 @@ A modern, mobile-first Point of Sale system for gas cylinder businesses. Built w
 
 - **Fast POS Interface** - Optimized for mobile and desktop
 - **Multi-shop Management** - Track inventory across locations
-- **Gas Cylinder Tracking** - Empty cylinder returns and deposits
+- **Gas Cylinder Tracking** - Empty cylinder returns
 - **Real-time Stock Updates** - FIFO batch-based inventory
 - **Sales Analytics** - Daily, weekly, monthly, yearly reports
 - **Credit Sales (Baadaye)** - Customer credit management
@@ -125,11 +125,6 @@ For Neon PostgreSQL with the existing Render backend and frontend services, see 
 - `GET /stocks/shop/<id>` - Shop inventory
 - `POST /stocks/restock` - Add stock
 - `POST /transfers` - Transfer between shops
-
-### Deposits
-- `POST /deposits` - Create deposit
-- `POST /deposits/<id>/payments` - Add payment
-- `GET /deposits/active` - Active deposits
 
 ### Reports
 - `GET /reports/product-analysis` - Product performance

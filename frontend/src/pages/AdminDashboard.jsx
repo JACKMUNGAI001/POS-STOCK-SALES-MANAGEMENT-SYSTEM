@@ -14,7 +14,6 @@ export default function AdminDashboard(){
   const [managers, setManagers] = useState([])
   const [updatingManagerId, setUpdatingManagerId] = useState(null)
   const [salesSummary, setSalesSummary] = useState(null)
-  const [depositsSummary, setDepositsSummary] = useState(null)
   const [financialOverview, setFinancialOverview] = useState(null)
   const [stockSummary, setStockSummary] = useState(null)
   const navigate = useNavigate()
@@ -30,7 +29,6 @@ export default function AdminDashboard(){
     api.get('/reports/dashboard-summary').then(res => {
         const data = res.data;
         setSalesSummary(data.sales);
-        setDepositsSummary(data.deposits);
         setFinancialOverview(data.financial_overview);
         setStockSummary(data.stock_summary);
     }).catch(err => console.error("Error fetching summary", err));
@@ -138,18 +136,6 @@ export default function AdminDashboard(){
               </div>
             </button>
             <button
-              onClick={() => navigate('/deposits')}
-              className="flex-1 bg-indigo-600 text-white p-6 rounded-2xl shadow-lg shadow-indigo-100 dark:shadow-none hover:bg-indigo-700 hover:-translate-y-1 transition-all flex flex-col items-center justify-center gap-3 text-center group"
-            >
-              <div className="bg-white/20 p-3 rounded-xl group-hover:scale-110 transition-transform">
-                <UserCircle size={28} />
-              </div>
-              <div>
-                <span className="block text-lg font-black uppercase tracking-tight">New Deposit</span>
-                <span className="text-indigo-100 text-xs font-medium">Open lay-by account</span>
-              </div>
-            </button>
-            <button
               onClick={() => navigate('/pos/credit')}
               className="flex-1 bg-amber-600 text-white p-6 rounded-2xl shadow-lg shadow-amber-100 dark:shadow-none hover:bg-amber-700 hover:-translate-y-1 transition-all flex flex-col items-center justify-center gap-3 text-center group"
             >
@@ -224,12 +210,6 @@ export default function AdminDashboard(){
           <Card title="Gross Profit" className="border-l-4 border-l-green-500">
             {financialOverview ? formatCurrency(financialOverview.gross_profit) : '...'}
           </Card>
-          <Card title="Total Deposits" interactive={true} onClick={() => navigate('/admin/all-deposits')}>
-            {financialOverview ? formatCurrency(financialOverview.total_deposit_collections) : '...'}
-          </Card>
-          <Card title="Total Outstanding Deposits" interactive={true} onClick={() => navigate('/admin/outstanding-deposits')}>
-            {financialOverview ? financialOverview.customers_with_balances : '...'}
-          </Card>
           <Card title="Credit Sales" interactive={true} onClick={() => navigate('/admin/credit-sales')} className="group">
             <div className="flex items-start justify-between">
               <div>
@@ -249,17 +229,6 @@ export default function AdminDashboard(){
             <Link to="/attendant/sales/week" className="no-underline"><Card title="This Week's" interactive={true} className="!p-4 sm:!p-6">{salesSummary ? formatCurrency(salesSummary.week) : '...'}</Card></Link>
             <Link to="/attendant/sales/month" className="no-underline"><Card title="This Month's" interactive={true} className="!p-4 sm:!p-6">{salesSummary ? formatCurrency(salesSummary.month) : '...'}</Card></Link>
             <Link to="/attendant/sales/year" className="no-underline"><Card title="This Year's" interactive={true} className="!p-4 sm:!p-6">{salesSummary ? formatCurrency(salesSummary.year) : '...'}</Card></Link>
-          </div>
-        </div>
-
-        {/* DEPOSITS SUMMARY */}
-        <div className="mb-10">
-          <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-4 tracking-tight border-l-4 border-l-indigo-600 pl-3 transition-colors text-sm uppercase tracking-widest text-gray-400 dark:text-gray-500">Deposits Summary</h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-            <Link to="/attendant/deposits/today" className="no-underline"><Card title="Today's" interactive={true} className="!p-4 sm:!p-6">{depositsSummary ? formatCurrency(depositsSummary.today) : '...'}</Card></Link>
-            <Link to="/attendant/deposits/week" className="no-underline"><Card title="This Week's" interactive={true} className="!p-4 sm:!p-6">{depositsSummary ? formatCurrency(depositsSummary.week) : '...'}</Card></Link>
-            <Link to="/attendant/deposits/month" className="no-underline"><Card title="This Month's" interactive={true} className="!p-4 sm:!p-6">{depositsSummary ? formatCurrency(depositsSummary.month) : '...'}</Card></Link>
-            <Link to="/attendant/deposits/year" className="no-underline"><Card title="This Year's" interactive={true} className="!p-4 sm:!p-6">{depositsSummary ? formatCurrency(depositsSummary.year) : '...'}</Card></Link>
           </div>
         </div>
 

@@ -51,8 +51,6 @@ JWT_SECRET_KEY=your-jwt-secret-key-min-32-chars
 # Frontend URL (update after frontend deployment)
 FRONTEND_URL=https://your-frontend-domain.vercel.app
 
-# Optional: Reserve stock on deposit
-RESERVE_ON_DEPOSIT=true
 ```
 
 ### 3.2 Generate Secure Secrets
@@ -241,10 +239,18 @@ python seed.py --force
 ```bash
 # Check migration status
 flask db current
+```
 
-# If stuck, check alembic_version table in Supabase
-# You may need to manually fix: DELETE FROM alembic_version;
-# Then: flask db stamp head && flask db upgrade
+If the database already contains tables but `flask db upgrade` tries to run the
+initial migration and fails with `DuplicateTable`, do not delete application
+tables or stamp `head` blindly. First back up the database and verify that its
+schema matches the last migration already represented by its tables. If it
+matches revision `9f4a6d8c1b2e`, mark that existing schema as applied, then run
+the pending migrations:
+
+```bash
+flask db stamp 9f4a6d8c1b2e
+flask db upgrade
 ```
 
 ### Connection Issues

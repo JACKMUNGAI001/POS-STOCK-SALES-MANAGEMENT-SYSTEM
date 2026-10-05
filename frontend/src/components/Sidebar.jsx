@@ -11,7 +11,6 @@ import {
   Receipt, 
   ArrowLeftRight, 
   UserCircle,
-  Users,
   FileText,
   Truck,
   X,
@@ -55,8 +54,6 @@ export default function Sidebar({ role: propRole, onClose }){
             <NavLink to="/admin" icon={LayoutDashboard}>Dashboard</NavLink>
             <NavLink to="/pos" icon={Receipt}>Record Sale</NavLink>
             <NavLink to="/pos/credit" icon={Receipt}>Record Credit Sale</NavLink>
-            <NavLink to="/deposits" icon={Store}>New Deposit</NavLink>
-            <NavLink to="/attendant/deposits" icon={Users}>Active Deposits</NavLink>
             <NavLink to="/admin/all-sales" icon={BarChart3}>Total Sales</NavLink>
             <NavLink to="/admin/credit-sales" icon={CreditCard}>Credit Sales</NavLink>
             <NavLink to="/admin/shops" icon={Store}>Shops</NavLink>
@@ -75,8 +72,6 @@ export default function Sidebar({ role: propRole, onClose }){
             <NavLink to="/manager" icon={LayoutDashboard}>Dashboard</NavLink>
             <NavLink to="/pos" icon={Receipt}>Record Sale</NavLink>
             <NavLink to="/pos/credit" icon={Receipt}>Record Credit Sale</NavLink>
-            <NavLink to="/deposits" icon={Store}>New Deposit</NavLink>
-            <NavLink to="/attendant/deposits" icon={Users}>Active Deposits</NavLink>
             <NavLink to="/admin/all-sales" icon={BarChart3}>Total Sales</NavLink>
             <NavLink to="/admin/credit-sales" icon={CreditCard}>Credit Sales</NavLink>
             <NavLink to="/admin/shops" icon={Store}>Shops</NavLink>
@@ -91,8 +86,6 @@ export default function Sidebar({ role: propRole, onClose }){
             <NavLink to="/attendant" icon={LayoutDashboard}>Dashboard</NavLink>
             <NavLink to="/pos" icon={Receipt}>Record Sale</NavLink>
             <NavLink to="/pos/credit" icon={Receipt}>Record Credit Sale</NavLink>
-            <NavLink to="/deposits" icon={Store}>New Deposit</NavLink>
-            <NavLink to="/attendant/deposits" icon={Users}>Active Deposits</NavLink>
             <NavLink to="/admin/credit-sales" icon={CreditCard}>Credit Sales</NavLink>
             <NavLink to="/empty-cylinders" icon={Cylinder}>Empty Cylinders</NavLink>
             <NavLink to="/empty-cylinders/outstanding" icon={Cylinder}>Cylinders Not Returned</NavLink>

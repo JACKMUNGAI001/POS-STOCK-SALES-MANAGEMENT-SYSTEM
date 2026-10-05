@@ -1,10 +1,8 @@
 from extensions import db
 from models.sale import Sale, SaleItem
-from models.deposit import DepositPayment
 from models.expense import Expense
 from models.stock import ShopStock
 from models.product import Item
-from models.deposit import DepositSale
 from models.supplier import SupplierInvoice
 from sqlalchemy import func
 from sqlalchemy import or_
@@ -19,7 +17,6 @@ def get_global_financial_overview():
         total_sales = db.session.query(func.sum(Sale.total_amount)).filter(
             or_(Sale.sale_type != 'credit', Sale.status == 'paid')
         ).scalar() or 0
-        total_deposit_collections = db.session.query(func.sum(DepositPayment.amount)).scalar() or 0
         total_expenses = db.session.query(func.sum(Expense.amount)).scalar() or 0
         
         # Optimized: Use SQL aggregation for gross profit
@@ -32,15 +29,11 @@ def get_global_financial_overview():
             func.sum(ShopStock.buy_price * ShopStock.quantity)
         ).scalar() or 0
 
-        customers_with_balances = DepositSale.query.filter(DepositSale.status == 'active').count()
-
         return {
             "total_sales": float(total_sales),
             "gross_profit": float(gross_profit),
-            "total_deposit_collections": float(total_deposit_collections),
             "total_expenses": float(total_expenses),
             "combined_stock_value": float(combined_stock_value),
-            "customers_with_balances": customers_with_balances,
         }
     except Exception as e:
         from flask import current_app
@@ -182,36 +175,6 @@ def get_sales_summary(shop_id=None):
         "week": float(week_query.scalar() or 0),
         "month": float(month_query.scalar() or 0),
         "year": float(year_query.scalar() or 0)
-    }
-
-def get_deposits_summary(shop_id=None):
-    now = get_local_time()
-    today_start = datetime.combine(now.date(), datetime.min.time())
-    
-    # Base queries
-    today_q = db.session.query(func.sum(DepositPayment.amount)).filter(DepositPayment.paid_on >= today_start)
-    
-    start_of_week = today_start - timedelta(days=now.weekday())
-    week_q = db.session.query(func.sum(DepositPayment.amount)).filter(DepositPayment.paid_on >= start_of_week)
-    
-    start_of_month = datetime(now.year, now.month, 1)
-    month_q = db.session.query(func.sum(DepositPayment.amount)).filter(DepositPayment.paid_on >= start_of_month)
-    
-    start_of_year = datetime(now.year, 1, 1)
-    year_q = db.session.query(func.sum(DepositPayment.amount)).filter(DepositPayment.paid_on >= start_of_year)
-
-    if shop_id:
-        # Join with DepositSale to filter by shop_id
-        today_q = today_q.join(DepositSale).filter(DepositSale.shop_id == shop_id)
-        week_q = week_q.join(DepositSale).filter(DepositSale.shop_id == shop_id)
-        month_q = month_q.join(DepositSale).filter(DepositSale.shop_id == shop_id)
-        year_q = year_q.join(DepositSale).filter(DepositSale.shop_id == shop_id)
-
-    return {
-        "today": float(today_q.scalar() or 0),
-        "week": float(week_q.scalar() or 0),
-        "month": float(month_q.scalar() or 0),
-        "year": float(year_q.scalar() or 0)
     }
 
 def get_stock_summary_by_category(shop_id=None):
@@ -393,10 +356,7 @@ def get_dashboard_summary(shop_id=None):
     """
     Unified dashboard summary to reduce multiple API calls on login.
     """
-    from models.deposit import DepositSale
-    
     sales = get_sales_summary(shop_id)
-    deposits = get_deposits_summary(shop_id)
     stock_summary = get_stock_summary_by_category(shop_id)
     
     financial = None
@@ -409,21 +369,13 @@ def get_dashboard_summary(shop_id=None):
         low_stock_query = low_stock_query.filter(ShopStock.shop_id == shop_id)
     low_stock_count = low_stock_query.scalar() or 0
 
-    deposit_customers_count = 0
-    cust_query = db.session.query(func.count(DepositSale.id)).filter(DepositSale.status == 'active')
-    if shop_id:
-        cust_query = cust_query.filter(DepositSale.shop_id == shop_id)
-    deposit_customers_count = cust_query.scalar() or 0
-
     credits_summary = get_credits_summary(shop_id)
 
     return {
         "sales": sales,
-        "deposits": deposits,
         "stock_summary": stock_summary,
         "financial_overview": financial,
         "low_stock_count": int(low_stock_count),
-        "deposit_customers_count": int(deposit_customers_count)
     }
 
 def get_product_sales_analysis(year=None, month=None, shop_id=None, period=None):

@@ -107,7 +107,6 @@ def delete_item_controller(item_id):
     
     # Cleanup related records to prevent "N/A" orphans and foreign key violations
     from models.stock import ShopStock, StockMovement, StockBatch, EmptyCylinderStock, SaleCylinderReturn
-    from models.deposit import DepositSale, DepositPayment
     from models.supplier import SupplierInvoiceItem, supplier_items
     from models.sale import SaleItem
     from models.transfer import TransferItem
@@ -115,19 +114,13 @@ def delete_item_controller(item_id):
     # 1. Handle shop stock
     ShopStock.query.filter_by(item_id=item_id).delete()
 
-    # 2. Handle deposits: Delete payments first then the sales
-    deposits = DepositSale.query.filter_by(item_id=item_id).all()
-    for d in deposits:
-        DepositPayment.query.filter_by(deposit_id=d.id).delete()
-        db.session.delete(d)
-
-    # 3. Handle Supplier records (Foreign Keys)
+    # 2. Handle Supplier records (Foreign Keys)
     # supplier_items association table
     db.session.execute(supplier_items.delete().where(supplier_items.c.item_id == item_id))
     # supplier_invoice_items table
     SupplierInvoiceItem.query.filter_by(item_id=item_id).delete()
 
-    # 4. Handle other orphan records (loose associations)
+    # 3. Handle other orphan records (loose associations)
     # Important: Delete SaleItem by batch reference too just in case
     batch_ids = [b.id for b in StockBatch.query.filter_by(item_id=item_id).all()]
     if batch_ids:

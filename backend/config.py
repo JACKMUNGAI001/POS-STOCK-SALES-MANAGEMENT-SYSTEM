@@ -25,4 +25,3 @@ class Config:
     JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "change-me-jwt")
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=12)
     FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
-    RESERVE_ON_DEPOSIT = os.getenv("RESERVE_ON_DEPOSIT", "true").lower() in ("1","true","yes")

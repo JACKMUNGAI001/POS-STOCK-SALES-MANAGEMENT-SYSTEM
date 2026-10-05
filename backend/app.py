@@ -1,7 +1,6 @@
 from flask import Flask, jsonify, request
 from config import Config
 from extensions import db, migrate, jwt, cors
-from models.sale import ensure_sale_type_column, ensure_cylinder_schema
 
 
 def create_app():
@@ -14,12 +13,9 @@ def create_app():
     jwt.init_app(app)
 
     with app.app_context():
-        # Ensure all model modules are imported so SQLAlchemy knows about every
-        # table before we create the schema or run compatibility patches.
+        # Import models so Alembic can discover their metadata without changing
+        # the database before migrations run.
         import models  # noqa: F401
-        db.create_all()
-        ensure_sale_type_column()
-        ensure_cylinder_schema()
 
     cors.init_app(app, resources={r"/*": {"origins": "*"}})
 

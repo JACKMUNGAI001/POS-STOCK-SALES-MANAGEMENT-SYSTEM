@@ -15,7 +15,6 @@ const AdminDashboard = React.lazy(() => import('./pages/AdminDashboard'))
 const AttendantDashboard = React.lazy(() => import('./pages/AttendantDashboard'))
 const POS = React.lazy(() => import('./pages/POS'))
 const RecordCreditSale = React.lazy(() => import('./pages/RecordCreditSale'))
-const Deposits = React.lazy(() => import('./pages/Deposits'))
 const Transfers = React.lazy(() => import('./pages/Transfers'))
 const AttendantTransfers = React.lazy(() => import('./pages/AttendantTransfers'))
 const AttendantInventory = React.lazy(() => import('./pages/AttendantInventory'))
@@ -28,11 +27,8 @@ const AdminItems = React.lazy(() => import('./pages/AdminItems'))
 const ShopDetails = React.lazy(() => import('./pages/ShopDetails'))
 const AdminShopStock = React.lazy(() => import('./pages/AdminShopStock'))
 const ShopSales = React.lazy(() => import('./pages/ShopSales'))
-const ShopDeposits = React.lazy(() => import('./pages/ShopDeposits'))
 const ShopLowStock = React.lazy(() => import('./pages/ShopLowStock'))
 const AllSales = React.lazy(() => import('./pages/AllSales'))
-const AllDeposits = React.lazy(() => import('./pages/AllDeposits'))
-const OutstandingDeposits = React.lazy(() => import('./pages/OutstandingDeposits'))
 const OutstandingCredits = React.lazy(() => import('./pages/OutstandingCredits'))
 const AdminSuppliers = React.lazy(() => import('./pages/AdminSuppliers'))
 const AdminSupplierInvoices = React.lazy(() => import('./pages/AdminSupplierInvoices'))
@@ -43,11 +39,6 @@ const WeeksSales = React.lazy(() => import('./pages/WeeksSales'))
 const MonthsSales = React.lazy(() => import('./pages/MonthsSales'))
 const YearsSales = React.lazy(() => import('./pages/YearsSales'))
 const LowStockItems = React.lazy(() => import('./pages/LowStockItems'))
-const DepositCustomers = React.lazy(() => import('./pages/DepositCustomers'))
-const TodaysDeposits = React.lazy(() => import('./pages/TodaysDeposits'))
-const WeeksDeposits = React.lazy(() => import('./pages/WeeksDeposits'))
-const MonthsDeposits = React.lazy(() => import('./pages/MonthsDeposits'))
-const YearsDeposits = React.lazy(() => import('./pages/YearsDeposits'))
 const RestockHistory = React.lazy(() => import('./pages/RestockHistory'))
 const GlobalInventory = React.lazy(() => import('./pages/GlobalInventory'))
 const EmptyCylinders = React.lazy(() => import('./pages/EmptyCylinders'))
@@ -93,11 +84,8 @@ ReactDOM.createRoot(document.getElementById('root')).render(
               <Route path="/admin/shops/:shopId" element={<ProtectedRoute role={['admin', 'manager']}><PageLayout><ShopDetails/></PageLayout></ProtectedRoute>} />
               <Route path="/admin/shops/:shopId/stock" element={<ProtectedRoute role={['admin', 'manager']}><PageLayout><AdminShopStock/></PageLayout></ProtectedRoute>} />
               <Route path="/admin/shops/:shopId/sales" element={<ProtectedRoute role={['admin', 'manager']}><PageLayout><ShopSales/></PageLayout></ProtectedRoute>} />
-              <Route path="/admin/shops/:shopId/deposits" element={<ProtectedRoute role={['admin', 'manager']}><PageLayout><ShopDeposits/></PageLayout></ProtectedRoute>} />
               <Route path="/admin/shops/:shopId/low-stock" element={<ProtectedRoute role={['admin', 'manager']}><PageLayout><ShopLowStock/></PageLayout></ProtectedRoute>} />
               <Route path="/admin/all-sales" element={<ProtectedRoute role={['admin', 'manager']}><PageLayout><AllSales/></PageLayout></ProtectedRoute>} />
-              <Route path="/admin/all-deposits" element={<ProtectedRoute role={['admin', 'manager']}><PageLayout><AllDeposits/></PageLayout></ProtectedRoute>} />
-              <Route path="/admin/outstanding-deposits" element={<ProtectedRoute role={['admin', 'manager']}><PageLayout><OutstandingDeposits/></PageLayout></ProtectedRoute>} />
               <Route path="/admin/outstanding-credits" element={<ProtectedRoute role={['admin', 'manager']}><PageLayout><OutstandingCredits/></PageLayout></ProtectedRoute>} />
               <Route path="/admin/credit-sales" element={<ProtectedRoute role={['admin', 'manager', 'attendant']}><PageLayout><CreditSales/></PageLayout></ProtectedRoute>} />
               <Route path="/admin/pnl" element={<ProtectedRoute role="admin"><PageLayout role="admin"><PNLReport/></PageLayout></ProtectedRoute>} />
@@ -111,7 +99,6 @@ ReactDOM.createRoot(document.getElementById('root')).render(
               <Route path="/attendant" element={<ProtectedRoute role="attendant"><PageLayout role="attendant"><AttendantDashboard/></PageLayout></ProtectedRoute>} />
               <Route path="/pos" element={<ProtectedRoute role={['attendant', 'manager', 'admin']}><PageLayout><POS/></PageLayout></ProtectedRoute>} />
               <Route path="/pos/credit" element={<ProtectedRoute role={['attendant', 'manager', 'admin']}><PageLayout><RecordCreditSale/></PageLayout></ProtectedRoute>} />
-              <Route path="/deposits" element={<ProtectedRoute role={['attendant', 'manager', 'admin']}><PageLayout><Deposits/></PageLayout></ProtectedRoute>} />
               <Route path="/attendant/low-stock" element={<ProtectedRoute role={['attendant', 'manager', 'admin']}><PageLayout><LowStockItems /></PageLayout></ProtectedRoute>} />
               <Route path="/attendant/inventory" element={<ProtectedRoute role={['attendant', 'manager', 'admin']}><PageLayout role="attendant"><AttendantInventory/></PageLayout></ProtectedRoute>} />
               
@@ -127,12 +114,6 @@ ReactDOM.createRoot(document.getElementById('root')).render(
               <Route path="/attendant/sales/month" element={<ProtectedRoute><PageLayout><MonthsSales /></PageLayout></ProtectedRoute>} />
               <Route path="/attendant/sales/year" element={<ProtectedRoute><PageLayout><YearsSales /></PageLayout></ProtectedRoute>} />
               
-              <Route path="/attendant/deposits" element={<ProtectedRoute><PageLayout><DepositCustomers /></PageLayout></ProtectedRoute>} />
-              <Route path="/attendant/deposits/today" element={<ProtectedRoute><PageLayout><TodaysDeposits /></PageLayout></ProtectedRoute>} />
-              <Route path="/attendant/deposits/week" element={<ProtectedRoute><PageLayout><WeeksDeposits /></PageLayout></ProtectedRoute>} />
-              <Route path="/attendant/deposits/month" element={<ProtectedRoute><PageLayout><MonthsDeposits /></PageLayout></ProtectedRoute>} />
-              <Route path="/attendant/deposits/year" element={<ProtectedRoute><PageLayout><YearsDeposits /></PageLayout></ProtectedRoute>} />
-
             </Routes>
           </Suspense>
         </BrowserRouter>

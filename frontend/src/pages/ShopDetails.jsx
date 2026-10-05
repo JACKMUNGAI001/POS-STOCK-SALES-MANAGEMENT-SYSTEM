@@ -1,11 +1,10 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import api, { API_BASE } from '../api/api';
+import api from '../api/api';
 import Card from '../components/Card';
 import { AuthContext } from '../context/AuthContext';
 import { SearchContext } from '../context/SearchContext';
-import { Store, Plus, ChevronDown, ChevronUp, AlertTriangle, TrendingUp, History, Package, SearchX, Edit, X, Save, History as HistoryIcon, Clock, CheckCircle } from 'lucide-react';
-import { formatDate, formatPaymentMethod } from '../utils/helpers';
+import { Store, Plus, ChevronDown, ChevronUp, AlertTriangle, TrendingUp, Package, SearchX, Edit, X, Save } from 'lucide-react';
 import SearchableSelect from '../components/SearchableSelect';
 import useSubmissionLock from '../hooks/useSubmissionLock';
 
@@ -15,7 +14,6 @@ export default function ShopDetails() {
   const { searchQuery, searchType } = useContext(SearchContext);
   const [shop, setShop] = useState(null);
   const [shopSales, setShopSales] = useState([]);
-  const [shopDeposits, setShopDeposits] = useState([]);
   const [shopStock, setShopStock] = useState([]);
   const [availableItems, setAvailableItems] = useState([]);
   const [stockFormData, setStockFormData] = useState({
@@ -24,8 +22,6 @@ export default function ShopDetails() {
   const [itemsToRestock, setItemsToRestock] = useState([]);
   const [editingStock, setEditingStock] = useState(null);
   const [editFormData, setEditFormData] = useState({ qty: "", buy_price: "" });
-  const [selectedDeposit, setSelectedDeposit] = useState(null);
-  const [showHistory, setShowHistory] = useState(false);
 
   const [expandedSection, setExpandedSection] = useState('stock');
   const [expandedStockItems, setExpandedStockItems] = useState([]);
@@ -50,7 +46,6 @@ export default function ShopDetails() {
   useEffect(() => {
     fetchShopDetails();
     fetchShopSales();
-    fetchShopDeposits();
     fetchShopStock();
     fetchAvailableItems();
     fetchShopSummaries();
@@ -105,15 +100,6 @@ export default function ShopDetails() {
       setShopSales(response.data);
     } catch (err) {
       console.error('Error fetching shop sales');
-    }
-  };
-
-  const fetchShopDeposits = async () => {
-    try {
-      const response = await api.get(`/deposits/shop/${shopId}`);
-      setShopDeposits(response.data);
-    } catch (err) {
-      console.error('Error fetching shop deposits');
     }
   };
 
@@ -255,13 +241,6 @@ export default function ShopDetails() {
       })
     : shopSales;
 
-  const filteredDeposits = searchQuery
-    ? shopDeposits.filter(d => {
-        if (searchType === 'date') return new Date(d.created_at).toISOString().split('T')[0] === searchQuery;
-        return d.item_name.toLowerCase().includes(searchQuery.toLowerCase()) || d.buyer_name.toLowerCase().includes(searchQuery.toLowerCase());
-      })
-    : shopDeposits;
-
   const filteredStock = searchQuery
     ? shopStock.filter(s => {
         const item = availableItems.find(i => i.id === s.item_id);
@@ -287,12 +266,9 @@ export default function ShopDetails() {
         </div>
 
         {/* SHOP METRICS */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10 transition-colors">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10 transition-colors">
           <Card title="Revenue (Filtered)" className="border-l-4 border-l-green-500">
             {formatCurrency(filteredSales.reduce((acc, sale) => acc + (sale.total_amount || 0), 0))}
-          </Card>
-          <Card title="Collections (Filtered)" className="border-l-4 border-l-blue-500">
-            {formatCurrency(filteredDeposits.reduce((acc, dep) => acc + (dep.total_paid || 0), 0))}
           </Card>
           {user?.role === 'admin' && (
             <Card title="Stock Asset Value" className="border-l-4 border-l-purple-500">
@@ -496,16 +472,6 @@ export default function ShopDetails() {
             </div>
           </Link>
 
-          <Link to={`/admin/shops/${shopId}/deposits`} className="block bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 hover:shadow-lg transition-all">
-            <div className="flex items-center gap-3">
-              <History size={28} className="text-indigo-600" />
-              <div>
-                <h3 className="text-lg font-black">Customer Deposits</h3>
-                <p className="text-sm text-gray-500">{filteredDeposits.length} records</p>
-              </div>
-            </div>
-          </Link>
-
           <Link to={`/admin/shops/${shopId}/low-stock`} className="block bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 hover:shadow-lg transition-all">
             <div className="flex items-center gap-3">
               <AlertTriangle size={28} className="text-orange-500" />
@@ -578,79 +544,6 @@ export default function ShopDetails() {
             </div>
         )}
 
-        {/* HISTORY MODAL */}
-        {showHistory && selectedDeposit && (
-            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in duration-200 transition-colors">
-                    <div className="bg-indigo-600 p-6 text-white flex justify-between items-center transition-colors">
-                        <div>
-                            <h3 className="text-xl font-bold flex items-center gap-2 uppercase tracking-tighter">
-                                <HistoryIcon size={24} /> Payment History
-                            </h3>
-                            <p className="text-indigo-100 text-sm mt-1 font-medium">{selectedDeposit.buyer_name} — {selectedDeposit.item_name}</p>
-                        </div>
-                        <button onClick={() => {setShowHistory(false); setSelectedDeposit(null);}} className="text-white/80 hover:text-white transition-colors">
-                            <X size={28} />
-                        </button>
-                    </div>
-
-                    <div className="p-0 overflow-x-auto max-h-[60vh] overflow-y-auto custom-scrollbar">
-                        <table className="w-full relative border-collapse">
-                            <thead className="bg-gray-50/90 dark:bg-gray-900/90 text-xs font-black text-gray-400 dark:text-gray-500 uppercase transition-colors sticky top-0 z-10 backdrop-blur-sm">
-                                <tr>
-                                    <th className="px-6 py-4 text-left border-b border-gray-100 dark:border-gray-800">Date Paid</th>
-                                    <th className="px-6 py-4 text-right border-b border-gray-100 dark:border-gray-800">Amount</th>
-                                    <th className="px-6 py-4 text-center border-b border-gray-100 dark:border-gray-800">Receipt</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-50 dark:divide-gray-800 transition-colors">
-                                {selectedDeposit.payments && selectedDeposit.payments.length > 0 ? (
-                                    selectedDeposit.payments.map((p, idx) => (
-                                        <tr key={idx} className="hover:bg-indigo-50/10 dark:hover:bg-indigo-900/10 transition-colors">
-                                            <td className="px-6 py-4 text-sm font-medium text-gray-700 dark:text-gray-300">{formatDate(p.paid_on)}</td>
-                                            <td className="px-6 py-4 text-right font-black text-gray-900 dark:text-white">{formatCurrency(p.amount)}</td>
-                                            <td className="px-6 py-4 text-center">
-                                                <a
-                                                    href={`${API_BASE}/receipts/${p.receipt_uuid}`}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="inline-flex items-center gap-1.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 px-3 py-1 rounded-lg hover:bg-blue-600 hover:text-white transition-all text-[10px] font-black uppercase tracking-widest border border-blue-100 dark:border-blue-800"
-                                                >
-                                                    <CheckCircle size={14} /> View
-                                                </a>
-                                            </td>
-                                        </tr>
-                                    ))
-                                ) : (
-                                    <tr>
-                                        <td colSpan="3" className="px-6 py-10 text-center text-gray-400 dark:text-gray-500 italic font-bold uppercase tracking-widest text-xs">No payments recorded yet.</td>
-                                    </tr>
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <div className="p-8 bg-gray-50/50 dark:bg-gray-900/50 border-t border-gray-100 dark:border-gray-800 flex justify-between items-center transition-colors">
-                        <div className="space-y-1">
-                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Total Collected</p>
-                            <p className="text-2xl font-black text-green-600 dark:text-green-400">{formatCurrency(selectedDeposit.total_paid)}</p>
-                        </div>
-                        <div className="text-right space-y-1">
-                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Outstanding Balance</p>
-                            <p className={`text-2xl font-black ${selectedDeposit.balance > 0 ? 'text-red-500' : 'text-blue-600 dark:text-blue-400'}`}>{formatCurrency(selectedDeposit.balance)}</p>
-                        </div>
-                    </div>
-                    <div className="px-8 pb-8 bg-gray-50/50 dark:bg-gray-900/50">
-                        <button 
-                            onClick={() => {setShowHistory(false); setSelectedDeposit(null);}}
-                            className="w-full bg-indigo-600 text-white py-4 rounded-xl font-black text-sm uppercase tracking-widest shadow-lg shadow-indigo-100 dark:shadow-none hover:bg-indigo-700 transition-all"
-                        >
-                            CLOSE HISTORY
-                        </button>
-                    </div>
-                </div>
-            </div>
-        )}
     </>
   );
 }

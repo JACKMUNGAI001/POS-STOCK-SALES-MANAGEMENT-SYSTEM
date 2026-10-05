@@ -39,7 +39,6 @@ def clear_database():
     tables = set(db.inspect(db.engine).get_table_names())
 
     from models.sale import Sale, SaleItem, SalePayment
-    from models.deposit import DepositSale, DepositPayment
     from models.stock import ShopStock, StockMovement, StockBatch, EmptyCylinderStock, SaleCylinderReturn
     from models.transfer import Transfer, TransferItem
     from models.expense import Expense
@@ -53,10 +52,6 @@ def clear_database():
         db.session.query(SaleItem).delete()
     if "sales" in tables:
         db.session.query(Sale).delete()
-    if "deposit_payments" in tables:
-        db.session.query(DepositPayment).delete()
-    if "deposit_sales" in tables:
-        db.session.query(DepositSale).delete()
     if "sale_cylinder_returns" in tables:
         db.session.query(SaleCylinderReturn).delete()
     if "empty_cylinder_stocks" in tables:
