@@ -176,6 +176,23 @@ export default function ManagerDashboard(){
           </div>
         </div>
 
+        {canRestock && (
+          <div className="mb-10">
+            <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-4 tracking-tight transition-colors text-sm uppercase tracking-widest text-gray-400 dark:text-gray-500 border-l-4 border-l-blue-600 pl-3">
+              Shops Management
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+              {shops.map(shop => (
+                <Link key={shop.id} to={`/admin/shops/${shop.id}`} className="bg-white dark:bg-gray-800 p-5 sm:p-6 rounded-2xl shadow-sm border border-blue-100 dark:border-gray-700 bg-gradient-to-br from-white to-blue-50/30 dark:from-gray-800 dark:to-green-900/10 hover:border-blue-400 dark:hover:border-blue-500 hover:shadow-xl hover:-translate-y-1.5 transition-all no-underline group relative">
+                  <div className="absolute top-4 right-4 bg-blue-100 dark:bg-blue-900/50 p-1 rounded-lg text-blue-600 dark:text-blue-400"><Store size={14} strokeWidth={3} /></div>
+                  <h4 className="text-lg font-bold text-gray-900 dark:text-white mb-1 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{shop.name}</h4>
+                  <div className="flex items-start gap-2 text-gray-500 dark:text-gray-400 text-sm"><MapPin size={16} className="mt-0.5 shrink-0" /><span>{shop.address}</span></div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* STOCK SUMMARY BY CATEGORY */}
         <div className="mb-10">
           <h3 className="text-xl font-bold text-gray-800 dark:text-white tracking-tight border-l-4 border-l-green-600 pl-3 text-sm uppercase tracking-widest text-gray-400 dark:text-gray-500 transition-colors mb-4">
@@ -201,23 +218,6 @@ export default function ManagerDashboard(){
               ))}
           </div>
         </div>
-
-        {canRestock && (
-          <div className="mb-10">
-            <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-4 tracking-tight transition-colors text-sm uppercase tracking-widest text-gray-400 dark:text-gray-500 border-l-4 border-l-blue-600 pl-3">
-              Shops Management
-            </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-              {shops.map(shop => (
-                <Link key={shop.id} to={`/admin/shops/${shop.id}`} className="bg-white dark:bg-gray-800 p-5 sm:p-6 rounded-2xl shadow-sm border border-blue-100 dark:border-gray-700 bg-gradient-to-br from-white to-blue-50/30 dark:from-gray-800 dark:to-green-900/10 hover:border-blue-400 dark:hover:border-blue-500 hover:shadow-xl hover:-translate-y-1.5 transition-all no-underline group relative">
-                  <div className="absolute top-4 right-4 bg-blue-100 dark:bg-blue-900/50 p-1 rounded-lg text-blue-600 dark:text-blue-400"><Store size={14} strokeWidth={3} /></div>
-                  <h4 className="text-lg font-bold text-gray-900 dark:text-white mb-1 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{shop.name}</h4>
-                  <div className="flex items-start gap-2 text-gray-500 dark:text-gray-400 text-sm"><MapPin size={16} className="mt-0.5 shrink-0" /><span>{shop.address}</span></div>
-                </Link>
-              ))}
-            </div>
-          </div>
-        )}
 
         {/* SALES SUMMARY */}
         <div className="mb-10">
