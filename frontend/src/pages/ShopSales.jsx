@@ -8,18 +8,24 @@ export default function ShopSales(){
   const { shopId } = useParams()
   const [sales, setSales] = useState([])
   const [loading, setLoading] = useState(true)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [totalSales, setTotalSales] = useState(0)
+  const [totalPages, setTotalPages] = useState(0)
 
   useEffect(() => {
     const fetch = async () => {
+      setLoading(true)
       try {
-        const res = await api.get(`/sales/shop/${shopId}`)
-        setSales(res.data)
+        const res = await api.get(`/sales/shop/${shopId}`, { params: { page: currentPage, per_page: 25 } })
+        setSales(res.data.sales)
+        setTotalSales(res.data.total)
+        setTotalPages(res.data.pages)
       } catch (err){
         console.error('Error fetching shop sales', err)
       } finally { setLoading(false) }
     }
     fetch()
-  }, [shopId])
+  }, [shopId, currentPage])
 
   return (
     <div className="p-6">
@@ -44,6 +50,34 @@ export default function ShopSales(){
               </tbody>
             </table>
           )}
+        </div>
+      )}
+      {!loading && totalPages > 1 && (
+        <div className="mt-4 flex items-center justify-between gap-4">
+          <span className="text-sm text-gray-500 dark:text-gray-400">
+            Showing {(currentPage - 1) * 25 + 1}–{Math.min(currentPage * 25, totalSales)} of {totalSales}
+          </span>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setCurrentPage(page => Math.max(1, page - 1))}
+              disabled={currentPage === 1}
+              className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700"
+            >
+              Previous
+            </button>
+            <span className="self-center text-sm font-bold text-gray-600 dark:text-gray-300">
+              Page {currentPage} of {totalPages}
+            </span>
+            <button
+              type="button"
+              onClick={() => setCurrentPage(page => Math.min(totalPages, page + 1))}
+              disabled={currentPage === totalPages}
+              className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700"
+            >
+              Next
+            </button>
+          </div>
         </div>
       )}
     </div>

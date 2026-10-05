@@ -114,6 +114,8 @@ For Neon PostgreSQL with the existing Render backend and frontend services, see 
 - `GET /sales/week` - This week's sales
 - `GET /sales/month` - This month's sales
 - `GET /sales/year` - This year's sales
+- `GET /sales/all?page=1&per_page=25` - Paginated sales history (`per_page` is capped at 100); returns `sales`, `total`, `page`, `per_page`, and `pages`
+- `GET /sales/shop/<id>?page=1&per_page=25` - Paginated sales for a shop
 
 ### Inventory
 - `GET /items` - List all items

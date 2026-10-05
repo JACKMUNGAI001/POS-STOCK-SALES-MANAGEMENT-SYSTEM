@@ -57,6 +57,9 @@ export default function RestockHistory() {
   const [history, setHistory] = useState([]);
   const [shops, setShops] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalHistory, setTotalHistory] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
   const [expandedShops, setExpandedShops] = useState({});
   const [editingMovement, setEditingMovement] = useState(null);
   const [editForm, setEditForm] = useState({ qty: '', buy_price: '' });
@@ -64,8 +67,11 @@ export default function RestockHistory() {
 
   useEffect(() => {
     fetchShops();
-    fetchHistory();
   }, []);
+
+  useEffect(() => {
+    fetchHistory();
+  }, [currentPage]);
 
   const fetchShops = async () => {
     try {
@@ -83,12 +89,22 @@ export default function RestockHistory() {
   };
 
   const fetchHistory = async () => {
+    setLoading(true);
     try {
-      const response = await api.get('/stocks/history');
-      setHistory(response.data);
-      setLoading(false);
+      const response = await api.get('/stocks/history', {
+        params: { page: currentPage, per_page: 25 }
+      });
+      const data = response.data;
+      if (data.pages > 0 && currentPage > data.pages) {
+        setCurrentPage(data.pages);
+        return;
+      }
+      setHistory(data.history);
+      setTotalHistory(data.total);
+      setTotalPages(data.pages);
     } catch (err) {
-      console.error('Error fetching restock history');
+      console.error('Error fetching restock history', err);
+    } finally {
       setLoading(false);
     }
   };
@@ -171,7 +187,7 @@ export default function RestockHistory() {
               >
                 <div className="flex items-center gap-3">
                   <Store size={24} className="text-orange-600 dark:text-orange-400" />
-                  <h2 className="text-xl font-bold text-gray-800 dark:text-white tracking-tight">{shopName} <span className="ml-2 text-sm text-gray-400 font-medium">({movements.length} Records)</span></h2>
+                  <h2 className="text-xl font-bold text-gray-800 dark:text-white tracking-tight">{shopName} <span className="ml-2 text-sm text-gray-400 font-medium">({movements.length} on this page)</span></h2>
                 </div>
                 {expandedShops[shopName] ? <ChevronUp size={24} className="text-gray-400" /> : <ChevronDown size={24} className="text-gray-400" />}
               </button>
@@ -269,6 +285,35 @@ export default function RestockHistory() {
               )}
             </div>
           ))}
+        </div>
+      )}
+
+      {totalPages > 1 && (
+        <div className="mt-6 flex items-center justify-between gap-4">
+          <span className="text-sm text-gray-500 dark:text-gray-400">
+            Showing {(currentPage - 1) * 25 + 1}–{Math.min(currentPage * 25, totalHistory)} of {totalHistory}
+          </span>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setCurrentPage(page => Math.max(1, page - 1))}
+              disabled={currentPage === 1 || loading}
+              className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700"
+            >
+              Previous
+            </button>
+            <span className="self-center text-sm font-bold text-gray-600 dark:text-gray-300">
+              Page {currentPage} of {totalPages}
+            </span>
+            <button
+              type="button"
+              onClick={() => setCurrentPage(page => Math.min(totalPages, page + 1))}
+              disabled={currentPage === totalPages || loading}
+              className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700"
+            >
+              Next
+            </button>
+          </div>
         </div>
       )}
 

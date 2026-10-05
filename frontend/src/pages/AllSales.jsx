@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from "react";
+import React, { useState, useEffect, useContext, useCallback } from "react";
 import api, { API_BASE } from "../api/api";
 import { History, ShoppingBag, Store, User, FileText, Trash2, SearchX, Edit, Wallet } from "lucide-react";
 import { formatDate, formatPaymentMethod, formatSaleType } from "../utils/helpers";
@@ -11,24 +11,41 @@ export default function AllSales() {
   const [sales, setSales] = useState([]);
   const [loading, setLoading] = useState(false);
   const [editingSale, setEditingSale] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalSales, setTotalSales] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
   const { user } = useContext(AuthContext);
   const { searchQuery, searchType } = useContext(SearchContext);
 
   useEffect(() => {
     fetchSales();
-  }, []);
+  }, [fetchSales]);
 
-  const fetchSales = async () => {
+  const fetchSales = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await api.get("/sales/all");
-      setSales(response.data);
+      const response = searchQuery
+        ? await api.get("/sales/all")
+        : await api.get("/sales/all", { params: { page: currentPage, per_page: 25 } });
+      if (Array.isArray(response.data)) {
+        setSales(response.data);
+        setTotalSales(response.data.length);
+        setTotalPages(0);
+      } else {
+        if (response.data.pages > 0 && currentPage > response.data.pages) {
+          setCurrentPage(response.data.pages);
+          return;
+        }
+        setSales(response.data.sales);
+        setTotalSales(response.data.total);
+        setTotalPages(response.data.pages);
+      }
     } catch (err) {
-      console.error("Error fetching sales");
+      console.error("Error fetching sales", err);
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentPage, searchQuery]);
 
   const handlePay = async (sale) => {
     const remaining = (sale.total_amount || 0) - (sale.paid_amount || 0);
@@ -95,7 +112,7 @@ export default function AllSales() {
               Transaction History {searchQuery && <span className="text-xs font-medium text-blue-500 bg-blue-50 dark:bg-blue-900/30 px-2 py-0.5 rounded-full ml-2 transition-all">Searching: "{searchQuery}"</span>}
             </h2>
             <span className="bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-400 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest transition-all">
-              {filteredSales.length} {searchQuery ? 'Matching' : 'Total'} Records
+              {searchQuery ? filteredSales.length : totalSales} {searchQuery ? 'Matching' : 'Total'} Records
             </span>
           </div>
           
@@ -225,6 +242,35 @@ export default function AllSales() {
             )}
           </div>
         </div>
+
+        {!searchQuery && totalPages > 1 && (
+          <div className="mt-4 flex items-center justify-between gap-4">
+            <span className="text-sm text-gray-500 dark:text-gray-400">
+              Showing {(currentPage - 1) * 25 + 1}–{Math.min(currentPage * 25, totalSales)} of {totalSales}
+            </span>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setCurrentPage(page => Math.max(1, page - 1))}
+                disabled={currentPage === 1 || loading}
+                className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700"
+              >
+                Previous
+              </button>
+              <span className="self-center text-sm font-bold text-gray-600 dark:text-gray-300">
+                Page {currentPage} of {totalPages}
+              </span>
+              <button
+                type="button"
+                onClick={() => setCurrentPage(page => Math.min(totalPages, page + 1))}
+                disabled={currentPage === totalPages || loading}
+                className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
 
         {editingSale && (
           <EditSaleModal 

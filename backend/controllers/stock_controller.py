@@ -247,8 +247,16 @@ def get_restock_history_controller():
             shop_id = int(shop_id)
         except ValueError:
             return jsonify({"msg": "Invalid shop_id"}), 400
-    
-    history = get_restock_history(shop_id)
+
+    page_value = request.args.get("page")
+    per_page_value = request.args.get("per_page", "25")
+    try:
+        page = int(page_value) if page_value is not None else None
+        per_page = int(per_page_value)
+    except ValueError:
+        return jsonify({"msg": "Invalid pagination parameters"}), 400
+
+    history = get_restock_history(shop_id, page, per_page)
     return jsonify(history), 200
 
 def delete_restock_controller(movement_id):

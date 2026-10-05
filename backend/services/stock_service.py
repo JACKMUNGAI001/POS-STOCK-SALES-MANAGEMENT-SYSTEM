@@ -282,21 +282,15 @@ def delete_stock(shop_id, item_id, user_id):
     db.session.commit()
     return True
 
-def get_restock_history(shop_id=None):
-    query = StockMovement.query.filter(StockMovement.movement_type.in_(['purchase_in', 'adjustment', 'transfer_in']))
-    if shop_id:
-        query = query.filter_by(shop_id=shop_id)
-    
-    movements = query.order_by(StockMovement.created_at.desc()).all()
-    
+def _serialize_restock_movements(movements):
     item_ids = {m.item_id for m in movements if m.item_id}
     shop_ids = {m.shop_id for m in movements if m.shop_id}
     user_ids = {m.user_id for m in movements if m.user_id}
-    
+
     items = {i.id: i for i in Item.query.filter(Item.id.in_(item_ids)).all()} if item_ids else {}
     shops = {s.id: s for s in Shop.query.filter(Shop.id.in_(shop_ids)).all()} if shop_ids else {}
     users = {u.id: u for u in User.query.filter(User.id.in_(user_ids)).all()} if user_ids else {}
-    
+
     out = []
     for m in movements:
         item = items.get(m.item_id)
@@ -314,6 +308,29 @@ def get_restock_history(shop_id=None):
             "reference": m.reference
         })
     return out
+
+
+def _paginate_restock_history(query, page, per_page):
+    page = max(1, page)
+    per_page = min(100, max(1, per_page))
+    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+    return {
+        "history": _serialize_restock_movements(pagination.items),
+        "total": pagination.total,
+        "page": pagination.page,
+        "per_page": pagination.per_page,
+        "pages": pagination.pages,
+    }
+
+
+def get_restock_history(shop_id=None, page=None, per_page=25):
+    query = StockMovement.query.filter(StockMovement.movement_type.in_(['purchase_in', 'adjustment', 'transfer_in']))
+    if shop_id:
+        query = query.filter_by(shop_id=shop_id)
+    query = query.order_by(StockMovement.created_at.desc(), StockMovement.id.desc())
+    if page is None:
+        return _serialize_restock_movements(query.all())
+    return _paginate_restock_history(query, page, per_page)
 
 def delete_restock_movement(movement_id):
     mv = StockMovement.query.get(movement_id)

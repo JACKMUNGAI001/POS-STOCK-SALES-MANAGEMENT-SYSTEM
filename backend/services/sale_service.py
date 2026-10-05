@@ -320,14 +320,31 @@ def _serialize_sales_bulk(sales):
     
     return [_serialize_sale(s, shop=shops.get(s.shop_id), attendant=users.get(s.user_id), items_map=items) for s in sales]
 
-def get_all_sales():
+def _paginate_sales(query, page, per_page):
+    page = max(1, page)
+    per_page = min(100, max(1, per_page))
+    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+    return {
+        "sales": _serialize_sales_bulk(pagination.items),
+        "total": pagination.total,
+        "page": pagination.page,
+        "per_page": pagination.per_page,
+        "pages": pagination.pages,
+    }
+
+
+def get_all_sales(page=None, per_page=25):
     query = Sale.query.filter(or_(Sale.sale_type != 'credit', Sale.status == 'paid')).options(selectinload(Sale.items)).order_by(Sale.created_at.desc(), Sale.id.desc())
+    if page is not None:
+        return _paginate_sales(query, page, per_page)
     sales = query.all()
     return _serialize_sales_bulk(sales)
 
 
-def get_sales_by_shop(shop_id):
+def get_sales_by_shop(shop_id, page=None, per_page=25):
     query = Sale.query.filter_by(shop_id=shop_id).filter(or_(Sale.sale_type != 'credit', Sale.status == 'paid')).options(selectinload(Sale.items)).order_by(Sale.created_at.desc(), Sale.id.desc())
+    if page is not None:
+        return _paginate_sales(query, page, per_page)
     sales = query.all()
     return _serialize_sales_bulk(sales)
 

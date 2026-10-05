@@ -27,14 +27,18 @@ def create_sale_controller():
 
 def get_all_sales_controller():
     shop_id = get_shop_id_for_attendant()
+    page = request.args.get("page", type=int)
+    per_page = request.args.get("per_page", default=25, type=int)
     if shop_id:
-        sales = get_sales_by_shop(shop_id)
+        sales = get_sales_by_shop(shop_id, page, per_page)
     else:
-        sales = get_all_sales()
+        sales = get_all_sales(page, per_page)
     return jsonify(sales), 200
 
 def get_shop_sales_controller(shop_id):
-    sales = get_sales_by_shop(shop_id)
+    page = request.args.get("page", type=int)
+    per_page = request.args.get("per_page", default=25, type=int)
+    sales = get_sales_by_shop(shop_id, page, per_page)
     return jsonify(sales), 200
 
 def todays_sales_controller():
