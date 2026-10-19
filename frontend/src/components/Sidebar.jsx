@@ -57,6 +57,7 @@ export default function Sidebar({ role: propRole, onClose }){
             <NavLink to="/admin/all-sales" icon={BarChart3}>Total Sales</NavLink>
             <NavLink to="/admin/credit-sales" icon={CreditCard}>Credit Sales</NavLink>
             <NavLink to="/admin/shops" icon={Store}>Shops</NavLink>
+            <NavLink to="/admin/vans" icon={Truck}>Vans & Attendants</NavLink>
             <NavLink to="/admin/items" icon={Package}>Products</NavLink>
             <NavLink to="/empty-cylinders" icon={Cylinder}>Empty Cylinders</NavLink>
             <NavLink to="/empty-cylinders/outstanding" icon={Cylinder}>Cylinders Not Returned</NavLink>
@@ -84,6 +85,7 @@ export default function Sidebar({ role: propRole, onClose }){
         ) : (
           <>
             <NavLink to="/attendant" icon={LayoutDashboard}>Dashboard</NavLink>
+            <NavLink to="/van/inventory" icon={Truck}>Van Inventory</NavLink>
             <NavLink to="/pos" icon={Receipt}>Record Sale</NavLink>
             <NavLink to="/pos/credit" icon={Receipt}>Record Credit Sale</NavLink>
             <NavLink to="/admin/credit-sales" icon={CreditCard}>Credit Sales</NavLink>

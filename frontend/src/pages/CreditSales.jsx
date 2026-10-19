@@ -10,14 +10,20 @@ export default function CreditSales(){
   const [loading, setLoading] = useState(true)
   const [editingSale, setEditingSale] = useState(null)
   const [activeSection, setActiveSection] = useState('unpaid')
+  const [channel, setChannel] = useState('shop')
+  const [vans, setVans] = useState([])
+  const [vanId, setVanId] = useState('')
   const { user } = useContext(AuthContext)
 
-  useEffect(() => { fetchSales() }, [])
+  useEffect(() => {
+    if (user?.role === 'admin' || user?.role === 'manager') api.get('/vans').then(r => setVans(r.data)).catch(() => {})
+  }, [user])
+  useEffect(() => { fetchSales() }, [channel, vanId])
 
   const fetchSales = async () => {
     setLoading(true)
     try{
-      const res = await api.get('/reports/credit-sales')
+      const res = await api.get('/reports/credit-sales', { params: channel === 'van' ? { van_id: vanId || undefined } : {} })
       setSales(res.data)
     }catch(err){ console.error('Error fetching credit sales', err) }
     finally{ setLoading(false) }
@@ -68,8 +74,12 @@ export default function CreditSales(){
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-black">Credit Sales</h1>
+        <h1 className="text-2xl font-black">{user?.role === 'attendant' ? 'Van Credit Sales' : 'Credit Sales'}</h1>
       </div>
+      {(user?.role === 'admin' || user?.role === 'manager') && <div className="mb-5 flex flex-wrap gap-3">
+        <select value={channel} onChange={e => { setChannel(e.target.value); setVanId('') }} className="p-3 rounded-xl border dark:bg-gray-900 dark:border-gray-700"><option value="shop">Shop credits</option>{user?.role === 'admin' && <option value="van">Van credits</option>}</select>
+        {channel === 'van' && <select value={vanId} onChange={e => setVanId(e.target.value)} className="p-3 rounded-xl border dark:bg-gray-900 dark:border-gray-700"><option value="">All vans</option>{vans.map(v => <option key={v.id} value={v.id}>{v.registration_number}</option>)}</select>}
+      </div>}
       <div className="mb-4 flex gap-3 border-b border-gray-200 dark:border-gray-700">
         <button
           onClick={() => setActiveSection('unpaid')}
@@ -103,7 +113,7 @@ export default function CreditSales(){
                 </>}
                 actions={<>
                   {sale.status !== 'paid' && <button onClick={() => handlePay(sale)} className="flex flex-1 items-center justify-center gap-1 rounded-lg border border-green-300 px-3 py-2 text-xs font-bold text-green-600"><Wallet size={14} /> PAY</button>}
-                  {user?.role === 'admin' && <><button onClick={() => setEditingSale(sale)} className="rounded-lg border border-amber-300 p-2 text-amber-600" title="Edit credit sale"><Edit size={16} /></button><button onClick={() => handleDelete(sale)} className="rounded-lg border border-red-300 p-2 text-red-600" title="Delete credit sale"><Trash2 size={16} /></button></>}
+                  {user?.role === 'admin' && <>{!sale.van_id && <button onClick={() => setEditingSale(sale)} className="rounded-lg border border-amber-300 p-2 text-amber-600" title="Edit credit sale"><Edit size={16} /></button>}<button onClick={() => handleDelete(sale)} className="rounded-lg border border-red-300 p-2 text-red-600" title="Delete credit sale"><Trash2 size={16} /></button></>}
                   {sale.receipt_uuid && <a href={`${API_BASE}/receipts/${sale.receipt_uuid}`} target="_blank" rel="noreferrer" className="rounded-lg border border-blue-300 p-2 text-blue-600" title="View receipt"><FileText size={16} /></a>}
                 </>}
               />
@@ -147,13 +157,13 @@ export default function CreditSales(){
                       )}
                       {user?.role === 'admin' && (
                         <>
-                          <button
+                          {!c.van_id && <button
                             onClick={() => setEditingSale(c)}
                             className="bg-amber-50 text-amber-600 p-2 rounded-lg hover:bg-amber-600 hover:text-white transition-all"
                             title="Edit credit sale"
                           >
                             <Edit size={16} />
-                          </button>
+                          </button>}
                           <button
                             onClick={() => handleDelete(c)}
                             className="bg-red-50 text-red-600 p-2 rounded-lg hover:bg-red-600 hover:text-white transition-all"

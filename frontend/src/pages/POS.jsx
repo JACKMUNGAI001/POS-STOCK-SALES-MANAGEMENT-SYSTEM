@@ -15,12 +15,19 @@ export default function POS() {
   const [unitPrice, setUnitPrice] = useState("");
   const [paymentType, setPaymentType] = useState("mobile_money");
   const [saleType, setSaleType] = useState("standard");
+  const [customerName, setCustomerName] = useState("");
+  const [customerPhone, setCustomerPhone] = useState("");
   const [receiptUuid, setReceiptUuid] = useState(null);
   const [shops, setShops] = useState([]);
+  const [vans, setVans] = useState([]);
+  const [operation, setOperation] = useState(user?.role === 'attendant' ? 'van' : 'shop');
+  const [selectedVan, setSelectedVan] = useState('');
+  const [vanStock, setVanStock] = useState([]);
   const [selectedShop, setSelectedShop] = useState(user?.shop_id || "");
   const { isSubmitting: isCompletingSale, run: runSale } = useSubmissionLock();
 
   useEffect(() => {
+    if (user?.role === 'attendant') setOperation('van');
     const fetchItems = async () => {
       try {
         const response = await api.get("/items");
@@ -44,11 +51,25 @@ export default function POS() {
         }
       };
       fetchShops();
+      api.get('/vans').then(res => setVans(res.data)).catch(() => {});
+    } else if (user?.role === 'attendant') {
+      api.get('/vans/mine').then(res => { setVans([res.data]); setSelectedVan(String(res.data.id)); }).catch(() => {
+        setOperation('shop');
+      });
     }
   }, [user]);
 
+  useEffect(() => {
+    if (operation !== 'van' || !selectedVan) { setVanStock([]); return; }
+    api.get(`/vans/${selectedVan}/stock`).then(res => setVanStock(res.data)).catch(() => setVanStock([]));
+  }, [operation, selectedVan]);
+
+  const selectableItems = operation === 'van'
+    ? apiItems.filter(item => vanStock.some(stock => stock.item_id === item.id && stock.quantity > 0))
+    : apiItems;
+
   const handleAddItem = () => {
-    const itemToAdd = apiItems.find((i) => i.id === parseInt(selectedItem));
+    const itemToAdd = selectableItems.find((i) => i.id === parseInt(selectedItem));
     if (!itemToAdd || !quantity || !unitPrice) {
       alert("Please select item, quantity and enter price.");
       return;
@@ -109,24 +130,30 @@ export default function POS() {
       alert("Cart is empty.");
       return;
     }
-    if (!selectedShop) {
+    if (operation === 'shop' && !selectedShop) {
       alert("Please select a shop.");
       return;
     }
+    if (operation === 'van' && !selectedVan) { alert('No van is selected or assigned.'); return; }
     await runSale(async () => {
       try {
       const response = await api.post("/sales", {
-        shop_id: selectedShop,
+        ...(operation === 'van' ? { van_id: selectedVan } : { shop_id: selectedShop }),
         items: cartItems.map(({ item_id, qty, unit_price }) => ({ item_id, qty, unit_price })),
         empty_cylinders: cartItems.filter(item => item.tracksEmptyCylinder && item.empty_qty).map(item => ({ item_id: item.item_id, qty: Number(item.empty_qty) })),
         payment_type: paymentType,
         sale_type: saleType,
         saleType: saleType,
+        customer_name: customerName,
+        customer_phone: customerPhone,
       });
       setReceiptUuid(response.data.receipt_uuid);
       // Show server response for debugging sale_type
       alert("Sale recorded successfully!");
       setCartItems([]);
+      setCustomerName("");
+      setCustomerPhone("");
+      if (operation === 'van') api.get(`/vans/${selectedVan}/stock`).then(res => setVanStock(res.data)).catch(() => {});
       } catch (err) {
         alert(`Error recording sale: ${err.response?.data?.msg || err.message}`);
       }
@@ -142,29 +169,43 @@ export default function POS() {
               <div className="bg-white dark:bg-gray-800 p-5 sm:p-8 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 transition-colors">
                 <h2 className="text-xl font-bold text-gray-800 dark:text-white mb-6 flex items-center gap-2">
                   <Store size={24} className="text-purple-600 dark:text-purple-400" />
-                  Select Shop
+                  Sales operation
                 </h2>
+                <label className="block text-sm font-bold text-gray-700 dark:text-gray-400 uppercase tracking-wider mb-2">Operation</label>
+                <select value={operation} onChange={e => { setOperation(e.target.value); setCartItems([]); }} className="w-full p-3 mb-4 border rounded-xl bg-gray-50 dark:bg-gray-900 dark:border-gray-700"><option value="shop">Shop sale</option>{user?.role === 'admin' && <option value="van">Van sale</option>}</select>
+                {operation === 'van' ? <div>
+                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-400 uppercase tracking-wider mb-2">Van</label>
+                  <select value={selectedVan} onChange={e => { setSelectedVan(e.target.value); setCartItems([]); }} className="w-full p-3 border rounded-xl bg-gray-50 dark:bg-gray-900 dark:border-gray-700"><option value="">Choose van</option>{vans.map(v => <option key={v.id} value={v.id}>{v.registration_number}</option>)}</select>
+                </div> :
                 <div>
                   <label className="block text-sm font-bold text-gray-700 dark:text-gray-400 uppercase tracking-wider mb-2">Acting For Shop</label>
                   <SearchableSelect
                     options={shops}
                     value={selectedShop}
-                    onChange={(e) => setSelectedShop(e.target.value)}
+                    onChange={(e) => { setSelectedShop(e.target.value); setCartItems([]); }}
                     placeholder="Choose Shop..."
                   />
-                </div>
+                </div>}
               </div>
             )}
+            {user?.role === 'attendant' && operation === 'van' && <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl font-semibold text-blue-800 dark:text-blue-300">Van sale · {vans[0]?.registration_number || 'Loading assigned van'}</div>}
             <div className="bg-white dark:bg-gray-800 p-5 sm:p-8 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 transition-colors">
               <h2 className="text-xl font-bold text-gray-800 dark:text-white mb-6 flex items-center gap-2">
                 <Plus size={24} className="text-blue-600 dark:text-blue-400" />
                 Add Items to Cart
               </h2>
+              <div className="mb-5">
+                <label className="block text-sm font-bold text-gray-700 dark:text-gray-400 uppercase tracking-wider mb-2">Buyer name</label>
+                <div className="grid sm:grid-cols-2 gap-3">
+                  <input value={customerName} onChange={e => setCustomerName(e.target.value)} placeholder="Buyer name" className="w-full p-3 border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white" />
+                  {saleType === 'credit' && <input value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} placeholder="Buyer phone (required for credit)" className="w-full p-3 border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white" />}
+                </div>
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-5 md:gap-6">
                 <div>
                   <label className="block text-sm font-bold text-gray-700 dark:text-gray-400 uppercase tracking-wider mb-2">Select Item</label>
                   <SearchableSelect
-                    options={apiItems}
+                    options={selectableItems}
                     value={selectedItem}
                     onChange={(e) => setSelectedItem(e.target.value)}
                     placeholder="Choose Product..."
@@ -225,6 +266,7 @@ export default function POS() {
                           cartItems={cartItems}
                           setCartItems={setCartItems}
                           onRemove={handleRemoveFromCart}
+                          operation={operation}
                         />
                       ))}
                     </div>
@@ -236,7 +278,7 @@ export default function POS() {
                             <th className="px-4 sm:px-8 py-4 text-center text-xs font-bold text-gray-500 dark:text-gray-400 uppercase border-b border-gray-100 dark:border-gray-700">Qty</th>
                             <th className="px-4 sm:px-8 py-4 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase border-b border-gray-100 dark:border-gray-700">Unit Price</th>
                             <th className="px-4 sm:px-8 py-4 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase border-b border-gray-100 dark:border-gray-700">Total</th>
-                            <th className="px-4 sm:px-8 py-4 text-center text-xs font-bold text-gray-500 dark:text-gray-400 uppercase border-b border-gray-100 dark:border-gray-700">Empty Returned</th>
+                            <th className="px-4 sm:px-8 py-4 text-center text-xs font-bold text-gray-500 dark:text-gray-400 uppercase border-b border-gray-100 dark:border-gray-700">{operation === 'van' ? 'Empty Collected' : 'Empty Returned'}</th>
                             <th className="px-4 sm:px-8 py-4 text-center text-xs font-bold text-gray-500 dark:text-gray-400 uppercase border-b border-gray-100 dark:border-gray-700">Action</th>
                           </tr>
                         </thead>
@@ -304,16 +346,12 @@ export default function POS() {
               <div className="space-y-6">
                 <div>
                   <label className="block text-sm font-bold text-gray-700 dark:text-gray-400 uppercase tracking-wider mb-2">Payment Method</label>
-                  <div className="w-full p-3 border border-gray-200 dark:border-gray-700 rounded-xl bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 font-bold flex items-center gap-2 text-sm sm:text-base">
-                    <span>📱 Mobile Money (M-PESA)</span>
-                  </div>
+                  <select value={paymentType} onChange={e => setPaymentType(e.target.value)} disabled={saleType === 'credit'} className="w-full p-3 border border-gray-200 dark:border-gray-700 rounded-xl bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 font-bold"><option value="mobile_money">Mobile Money (M-PESA)</option><option value="cash">Cash on delivery</option></select>
                 </div>
 
                 <div>
                   <label className="block text-sm font-bold text-gray-700 dark:text-gray-400 uppercase tracking-wider mb-2">Sale Type</label>
-                  <div className="w-full p-3 border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white font-bold">
-                    Regular Sale
-                  </div>
+                  <select value={saleType} onChange={e => { setSaleType(e.target.value); if (e.target.value === 'credit') setPaymentType('credit'); else if (paymentType === 'credit') setPaymentType('mobile_money'); }} className="w-full p-3 border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white font-bold"><option value="standard">Paid on delivery</option><option value="credit">Credit · pay later</option></select>
                 </div>
                 
                 <div className="pt-6 border-t border-gray-100 dark:border-gray-700">

@@ -23,6 +23,8 @@ const Profile = React.lazy(() => import('./pages/Profile'))
 const PNLReport = React.lazy(() => import('./pages/PNLReport'))
 const SalesAnalysis = React.lazy(() => import('./pages/SalesAnalysis'))
 const AdminShops = React.lazy(() => import('./pages/AdminShops'))
+const AdminVans = React.lazy(() => import('./pages/AdminVans'))
+const VanInventory = React.lazy(() => import('./pages/VanInventory'))
 const AdminItems = React.lazy(() => import('./pages/AdminItems'))
 const ShopDetails = React.lazy(() => import('./pages/ShopDetails'))
 const AdminShopStock = React.lazy(() => import('./pages/AdminShopStock'))
@@ -77,6 +79,8 @@ ReactDOM.createRoot(document.getElementById('root')).render(
               {/* Admin/Manager Protected */}
               <Route path="/admin" element={<ProtectedRoute role="admin"><PageLayout><AdminDashboard/></PageLayout></ProtectedRoute>} />
               <Route path="/admin/shops" element={<ProtectedRoute role={['admin', 'manager']}><PageLayout><AdminShops/></PageLayout></ProtectedRoute>} />
+              <Route path="/admin/vans" element={<ProtectedRoute role="admin"><PageLayout><AdminVans/></PageLayout></ProtectedRoute>} />
+              <Route path="/van/inventory" element={<ProtectedRoute role="attendant"><PageLayout role="attendant"><VanInventory/></PageLayout></ProtectedRoute>} />
               <Route path="/admin/items" element={<ProtectedRoute role={['admin', 'manager']}><PageLayout><AdminItems/></PageLayout></ProtectedRoute>} />
               <Route path="/admin/restock-history" element={<ProtectedRoute role={['admin', 'manager']}><PageLayout><RestockHistory/></PageLayout></ProtectedRoute>} />
               <Route path="/admin/suppliers" element={<ProtectedRoute role="admin"><PageLayout role="admin" title="Suppliers Management"><AdminSuppliers/></PageLayout></ProtectedRoute>} />

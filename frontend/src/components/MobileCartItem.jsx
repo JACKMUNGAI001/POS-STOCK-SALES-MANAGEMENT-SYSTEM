@@ -1,7 +1,7 @@
 import React from 'react';
 import { Trash2 } from 'lucide-react';
 
-export default function MobileCartItem({ item, index, cartItems, setCartItems, onRemove }) {
+export default function MobileCartItem({ item, index, cartItems, setCartItems, onRemove, operation = 'shop' }) {
   const isGas = item.tracksEmptyCylinder;
 
   const handleEmptyQtyChange = (e) => {
@@ -44,10 +44,10 @@ export default function MobileCartItem({ item, index, cartItems, setCartItems, o
               onChange={toggleNoEmptyReturned}
               className="rounded border-gray-300"
             />
-            No empty returned
+            {operation === 'van' ? 'No empty collected' : 'No empty returned'}
           </label>
           <div>
-            <label className="block text-[10px] font-black text-gray-400 uppercase mb-1 tracking-widest">Empty Returned</label>
+            <label className="block text-[10px] font-black text-gray-400 uppercase mb-1 tracking-widest">{operation === 'van' ? 'Empty Collected' : 'Empty Returned'}</label>
             <input
               type="number"
               min="0"

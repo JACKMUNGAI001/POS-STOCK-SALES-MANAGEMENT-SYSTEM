@@ -9,6 +9,8 @@ class Sale(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     tenant_id = db.Column(db.Integer, db.ForeignKey("tenants.id"), nullable=True, index=True)
     shop_id = db.Column(db.Integer, index=True)
+    van_id = db.Column(db.Integer, db.ForeignKey("vans.id"), nullable=True, index=True)
+    operation_type = db.Column(db.String(20), nullable=False, default="shop", server_default="shop")
     user_id = db.Column(db.Integer)
     total_amount = db.Column(db.Numeric(12,2))
     payment_type = db.Column(db.String(50))  # mobile_money
@@ -55,6 +57,8 @@ def ensure_sale_type_column():
                 "sale_type": "VARCHAR(50) DEFAULT 'standard' NOT NULL",
                 "customer_name": "VARCHAR(255)",
                 "customer_phone": "VARCHAR(50)",
+                "van_id": "INTEGER",
+                "operation_type": "VARCHAR(20) DEFAULT 'shop' NOT NULL",
                 "paid_amount": "NUMERIC(12,2) DEFAULT 0 NOT NULL",
                 "status": "VARCHAR(32) DEFAULT 'unpaid' NOT NULL",
                 "profit_amount": "NUMERIC(12,2) DEFAULT 0 NOT NULL",

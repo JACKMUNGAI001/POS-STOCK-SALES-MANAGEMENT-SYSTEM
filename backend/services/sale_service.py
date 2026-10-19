@@ -120,16 +120,22 @@ def _generate_sale_receipt_html(sale, shop, attendant, sale_items):
             <p><strong>Total Amount:</strong> {sale.total_amount}</p>
             <p><strong>Payment Type:</strong> {'M-PESA' if sale.payment_type == 'mobile_money' else sale.payment_type}</p>
             <p><strong>Sale Type:</strong> {get_sale_type_label(sale.sale_type)}</p>
-            {f'<p><strong>Customer:</strong> {sale.customer_name}</p><p><strong>Phone:</strong> {sale.customer_phone}</p>' if sale.sale_type == 'credit' else ''}
+            {f'<p><strong>Customer:</strong> {sale.customer_name}</p>' if sale.customer_name else ''}
+            {f'<p><strong>Phone:</strong> {sale.customer_phone}</p>' if sale.customer_phone else ''}
         </div>
     </body>
     </html>
     """
     return html
 
-def create_sale(shop_id, user_id, items, payment_type="mobile_money", sale_type="standard", customer_name=None, customer_phone=None, empty_cylinders=None):
+def create_sale(shop_id, user_id, items, payment_type="mobile_money", sale_type="standard", customer_name=None, customer_phone=None, empty_cylinders=None, van_id=None):
     try:
         ensure_sale_type_column()
+        from models.van import Van, VanStock, VanEmptyCylinderStock, VanStockMovement
+        user = User.query.get(user_id)
+        van = Van.query.get(van_id) if van_id else None
+        if van_id and (not van or not user or van.tenant_id != user.tenant_id):
+            raise ValueError("Van not found")
         normalized_sale_type = normalize_sale_type(sale_type)
         customer_name = str(customer_name or "").strip() or None
         customer_phone = str(customer_phone or "").strip() or None
@@ -144,7 +150,9 @@ def create_sale(shop_id, user_id, items, payment_type="mobile_money", sale_type=
         
         with db.session.begin_nested():
             total = 0
-            sale = Sale(shop_id=shop_id, user_id=user_id, total_amount=0, payment_type=payment_type, sale_type=normalized_sale_type, customer_name=customer_name, customer_phone=customer_phone)
+            sale = Sale(tenant_id=user.tenant_id if user else None, shop_id=None if van else shop_id, van_id=van.id if van else None,
+                        operation_type="van" if van else "shop", user_id=user_id, total_amount=0,
+                        payment_type=payment_type, sale_type=normalized_sale_type, customer_name=customer_name, customer_phone=customer_phone)
             logger.debug(f"Sale instance created with sale.sale_type={normalized_sale_type!r}")
             db.session.add(sale)
             db.session.flush() # Ensure sale.id is available
@@ -157,13 +165,29 @@ def create_sale(shop_id, user_id, items, payment_type="mobile_money", sale_type=
                 if unit_price is None:
                     raise ValueError(f"Unit price not provided for item {item_id}")
                 unit_price = float(unit_price)
+                if qty_to_sell <= 0 or unit_price <= 0:
+                    raise ValueError("Sale quantities and prices must be greater than zero")
 
-                stock = ShopStock.query.filter_by(shop_id=shop_id, item_id=item_id).first()
+                stock = VanStock.query.filter_by(van_id=van_id, item_id=item_id).first() if van else ShopStock.query.filter_by(shop_id=shop_id, item_id=item_id).first()
                 if not stock or stock.quantity < qty_to_sell:
                     raise ValueError(f"Insufficient stock for item {item_id}")
                 
                 # Update total shop stock
                 stock.quantity -= qty_to_sell
+                if van:
+                    stock.updated_at = get_local_time()
+                    sale_items.append(SaleItem(sale_id=sale.id, item_id=item_id, qty=qty_to_sell,
+                                               unit_price=unit_price, unit_cost=stock.buy_price or 0))
+                    db.session.add(StockMovement(shop_id=None, item_id=item_id, movement_type="van_sale",
+                                                 qty=-qty_to_sell, user_id=user_id,
+                                                 reference=f"Van {van.registration_number}; sale {sale.id}",
+                                                 created_at=get_local_time()))
+                    db.session.add(VanStockMovement(tenant_id=van.tenant_id, van_id=van.id, item_id=item_id,
+                                                    movement_type="sale", quantity=-qty_to_sell,
+                                                    unit_cost=stock.buy_price or 0,
+                                                    reference=f"Sale {sale.id}", user_id=user_id))
+                    total += unit_price * qty_to_sell
+                    continue
                 
                 # FIFO Logic: Consume from batches
                 remaining_to_pull = qty_to_sell
@@ -222,7 +246,10 @@ def create_sale(shop_id, user_id, items, payment_type="mobile_money", sale_type=
                         db.session.add(n_admin)
                     db.session.add(n_attendant)
 
-            sold_quantities = {int(it.get("item_id")): int(it.get("qty", 0)) for it in items}
+            sold_quantities = {}
+            for it in items:
+                item_id = int(it.get("item_id"))
+                sold_quantities[item_id] = sold_quantities.get(item_id, 0) + int(it.get("qty", 0))
             returned_quantities = {}
             for empty in (empty_cylinders or []):
                 item_id, returned = int(empty.get("item_id")), int(empty.get("qty", 0))
@@ -245,6 +272,14 @@ def create_sale(shop_id, user_id, items, payment_type="mobile_money", sale_type=
                 db.session.add(SaleCylinderReturn(sale_id=sale.id, item_id=item_id, sold_qty=sold_qty, returned_qty=returned))
                 if not returned:
                     continue
+                if van:
+                    empty_stock = VanEmptyCylinderStock.query.filter_by(van_id=van_id, item_id=item_id).first()
+                    if not empty_stock:
+                        empty_stock = VanEmptyCylinderStock(tenant_id=van.tenant_id, van_id=van_id,
+                                                            item_id=item_id, quantity=0)
+                        db.session.add(empty_stock)
+                    empty_stock.quantity += returned
+                    continue
                 empty_stock = EmptyCylinderStock.query.filter_by(shop_id=shop_id, item_id=item_id).first()
                 if not empty_stock:
                     empty_stock = EmptyCylinderStock(shop_id=shop_id, item_id=item_id, quantity=0)
@@ -253,10 +288,15 @@ def create_sale(shop_id, user_id, items, payment_type="mobile_money", sale_type=
                 empty_stock.updated_at = get_local_time()
 
             sale.total_amount = total
+            if normalized_sale_type != "credit":
+                sale.paid_amount = total
+                sale.status = "paid"
+                sale.profit_amount = sum((float(si.unit_price or 0) - float(si.unit_cost or 0)) * int(si.qty or 0) for si in sale_items)
+                sale.profit_recognized = True
             db.session.add_all(sale_items)
 
         # After nested transaction, generate receipt and link it
-        shop = Shop.query.get(shop_id)
+        shop = Shop.query.get(shop_id) if not van else type("VanReceiptLocation", (), {"name": f"Van {van.registration_number}"})()
         attendant = User.query.get(user_id)
         
         receipt_html = _generate_sale_receipt_html(sale, shop, attendant, sale_items)
@@ -273,7 +313,11 @@ def create_sale(shop_id, user_id, items, payment_type="mobile_money", sale_type=
 
 def _serialize_sale(sale, shop=None, attendant=None, items_map=None):
     if shop is None:
-        shop = Shop.query.get(sale.shop_id)
+        shop = Shop.query.get(sale.shop_id) if sale.shop_id else None
+    van = None
+    if getattr(sale, "van_id", None):
+        from models.van import Van
+        van = Van.query.get(sale.van_id)
     if attendant is None:
         attendant = User.query.get(sale.user_id)
     if items_map is None:
@@ -292,7 +336,10 @@ def _serialize_sale(sale, shop=None, attendant=None, items_map=None):
     return {
         "id": sale.id,
         "shop_id": sale.shop_id,
-        "shop_name": shop.name if shop else "N/A",
+        "shop_name": shop.name if shop else (f"Van {van.registration_number}" if van else "N/A"),
+        "van_id": sale.van_id,
+        "van_registration": van.registration_number if van else None,
+        "operation_type": getattr(sale, "operation_type", "shop"),
         "user_id": sale.user_id,
         "attendant_name": attendant.name if attendant else "N/A",
         "total_amount": float(sale.total_amount) if sale.total_amount is not None else 0.0,
@@ -334,7 +381,7 @@ def _paginate_sales(query, page, per_page):
 
 
 def get_all_sales(page=None, per_page=25):
-    query = Sale.query.filter(or_(Sale.sale_type != 'credit', Sale.status == 'paid')).options(selectinload(Sale.items)).order_by(Sale.created_at.desc(), Sale.id.desc())
+    query = Sale.query.filter_by(operation_type="shop").filter(or_(Sale.sale_type != 'credit', Sale.status == 'paid')).options(selectinload(Sale.items)).order_by(Sale.created_at.desc(), Sale.id.desc())
     if page is not None:
         return _paginate_sales(query, page, per_page)
     sales = query.all()
@@ -342,39 +389,47 @@ def get_all_sales(page=None, per_page=25):
 
 
 def get_sales_by_shop(shop_id, page=None, per_page=25):
-    query = Sale.query.filter_by(shop_id=shop_id).filter(or_(Sale.sale_type != 'credit', Sale.status == 'paid')).options(selectinload(Sale.items)).order_by(Sale.created_at.desc(), Sale.id.desc())
+    query = Sale.query.filter_by(shop_id=shop_id, operation_type="shop").filter(or_(Sale.sale_type != 'credit', Sale.status == 'paid')).options(selectinload(Sale.items)).order_by(Sale.created_at.desc(), Sale.id.desc())
     if page is not None:
         return _paginate_sales(query, page, per_page)
     sales = query.all()
     return _serialize_sales_bulk(sales)
 
-def get_todays_sales(shop_id=None):
+def get_sales_by_van(van_id, page=None, per_page=25):
+    query = Sale.query.filter_by(van_id=van_id, operation_type="van").filter(or_(Sale.sale_type != 'credit', Sale.status == 'paid')).options(selectinload(Sale.items)).order_by(Sale.created_at.desc(), Sale.id.desc())
+    return _paginate_sales(query, page, per_page) if page is not None else _serialize_sales_bulk(query.all())
+
+def get_todays_sales(shop_id=None, van_id=None):
     today = get_local_time().date()
     start_of_day = datetime.combine(today, datetime.min.time())
     end_of_day = datetime.combine(today, datetime.max.time())
     
-    query = Sale.query.filter(Sale.created_at.between(start_of_day, end_of_day))
+    query = Sale.query.filter(Sale.operation_type == ("van" if van_id else "shop"), Sale.created_at.between(start_of_day, end_of_day))
     query = query.filter(or_(Sale.sale_type != 'credit', Sale.status == 'paid'))
     if shop_id:
         query = query.filter(Sale.shop_id == shop_id)
+    if van_id:
+        query = query.filter(Sale.van_id == van_id)
         
     sales = query.options(selectinload(Sale.items)).order_by(Sale.created_at.desc(), Sale.id.desc()).all()
     return _serialize_sales_bulk(sales)
 
-def get_current_weeks_sales(shop_id=None):
+def get_current_weeks_sales(shop_id=None, van_id=None):
     now = get_local_time()
     start_of_week = datetime.combine(now.date() - timedelta(days=now.weekday()), datetime.min.time())
     end_of_week = start_of_week + timedelta(days=7, microseconds=-1)
 
-    query = Sale.query.filter(Sale.created_at.between(start_of_week, end_of_week))
+    query = Sale.query.filter(Sale.operation_type == ("van" if van_id else "shop"), Sale.created_at.between(start_of_week, end_of_week))
     query = query.filter(or_(Sale.sale_type != 'credit', Sale.status == 'paid'))
     if shop_id:
         query = query.filter(Sale.shop_id == shop_id)
+    if van_id:
+        query = query.filter(Sale.van_id == van_id)
         
     sales = query.options(selectinload(Sale.items)).order_by(Sale.created_at.desc(), Sale.id.desc()).all()
     return _serialize_sales_bulk(sales)
 
-def get_current_months_sales(shop_id=None):
+def get_current_months_sales(shop_id=None, van_id=None):
     now = get_local_time()
     start_of_month = datetime(now.year, now.month, 1)
     if now.month == 12:
@@ -382,23 +437,27 @@ def get_current_months_sales(shop_id=None):
     else:
         end_of_month = datetime(now.year, now.month + 1, 1) - timedelta(microseconds=1)
 
-    query = Sale.query.filter(Sale.created_at.between(start_of_month, end_of_month))
+    query = Sale.query.filter(Sale.operation_type == ("van" if van_id else "shop"), Sale.created_at.between(start_of_month, end_of_month))
     query = query.filter(or_(Sale.sale_type != 'credit', Sale.status == 'paid'))
     if shop_id:
         query = query.filter(Sale.shop_id == shop_id)
+    if van_id:
+        query = query.filter(Sale.van_id == van_id)
         
     sales = query.options(selectinload(Sale.items)).order_by(Sale.created_at.desc(), Sale.id.desc()).all()
     return _serialize_sales_bulk(sales)
 
-def get_current_years_sales(shop_id=None):
+def get_current_years_sales(shop_id=None, van_id=None):
     now = get_local_time()
     start_of_year = datetime(now.year, 1, 1)
     end_of_year = datetime(now.year, 12, 31, 23, 59, 59, 999999)
 
-    query = Sale.query.filter(Sale.created_at.between(start_of_year, end_of_year))
+    query = Sale.query.filter(Sale.operation_type == ("van" if van_id else "shop"), Sale.created_at.between(start_of_year, end_of_year))
     query = query.filter(or_(Sale.sale_type != 'credit', Sale.status == 'paid'))
     if shop_id:
         query = query.filter(Sale.shop_id == shop_id)
+    if van_id:
+        query = query.filter(Sale.van_id == van_id)
         
     sales = query.options(selectinload(Sale.items)).order_by(Sale.created_at.desc(), Sale.id.desc()).all()
     return _serialize_sales_bulk(sales)
@@ -410,20 +469,32 @@ def delete_sale(sale_id, user_id):
             raise ValueError("Sale not found")
 
         with db.session.begin_nested():
+            from models.van import VanStock, VanEmptyCylinderStock, VanStockMovement
             cylinder_returns = SaleCylinderReturn.query.filter_by(sale_id=sale_id).all()
             for ret in cylinder_returns:
                 if ret.returned_qty:
-                    empty_stock = EmptyCylinderStock.query.filter_by(shop_id=sale.shop_id, item_id=ret.item_id).first()
+                    empty_stock = (VanEmptyCylinderStock.query.filter_by(van_id=sale.van_id, item_id=ret.item_id).first()
+                                   if sale.van_id else EmptyCylinderStock.query.filter_by(shop_id=sale.shop_id, item_id=ret.item_id).first())
+                    if sale.van_id and (not empty_stock or empty_stock.quantity < ret.returned_qty):
+                        raise ValueError("These returned cylinders have already been sent for depot refill; sale cannot be deleted")
                     if empty_stock and empty_stock.quantity >= ret.returned_qty:
                         empty_stock.quantity -= ret.returned_qty
-                        empty_stock.updated_at = get_local_time()
+                        if not sale.van_id:
+                            empty_stock.updated_at = get_local_time()
                 db.session.delete(ret)
 
             for item in sale.items:
-                stock = ShopStock.query.filter_by(shop_id=sale.shop_id, item_id=item.item_id).first()
+                stock = (VanStock.query.filter_by(van_id=sale.van_id, item_id=item.item_id).first()
+                         if sale.van_id else ShopStock.query.filter_by(shop_id=sale.shop_id, item_id=item.item_id).first())
                 if stock:
                     stock.quantity += item.qty
                     stock.updated_at = get_local_time()
+                    if sale.van_id:
+                        db.session.add(VanStockMovement(tenant_id=sale.tenant_id or User.query.get(user_id).tenant_id,
+                                                        van_id=sale.van_id, item_id=item.item_id,
+                                                        movement_type="sale_void", quantity=item.qty,
+                                                        unit_cost=item.unit_cost or 0,
+                                                        reference=f"Sale {sale_id} deleted", user_id=user_id))
                 
                 if item.batch_id:
                     batch = StockBatch.query.get(item.batch_id)
@@ -462,6 +533,8 @@ def update_sale(sale_id, user_id, items, payment_type, sale_type="standard", cus
         sale = Sale.query.get(sale_id)
         if not sale:
             raise ValueError("Sale not found")
+        if sale.van_id:
+            raise ValueError("Van sales cannot be edited; delete and re-record the sale to preserve van stock history")
 
         with db.session.begin_nested():
             # 1. Revert old stock levels

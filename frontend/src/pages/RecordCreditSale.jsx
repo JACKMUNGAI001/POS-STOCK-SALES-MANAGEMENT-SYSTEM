@@ -20,9 +20,13 @@ export default function RecordCreditSale() {
   const [receiptUuid, setReceiptUuid] = useState(null);
   const [shops, setShops] = useState([]);
   const [selectedShop, setSelectedShop] = useState(user?.shop_id || "");
+  const [vans, setVans] = useState([]);
+  const [operation, setOperation] = useState(user?.role === 'attendant' ? 'van' : 'shop');
+  const [selectedVan, setSelectedVan] = useState('');
   const { isSubmitting: isCompletingSale, run: runSale } = useSubmissionLock();
 
   useEffect(() => {
+    if (user?.role === 'attendant') setOperation('van');
     const fetchItems = async () => {
       try {
         const response = await api.get("/items");
@@ -46,6 +50,9 @@ export default function RecordCreditSale() {
         }
       };
       fetchShops();
+      api.get('/vans').then(res => setVans(res.data)).catch(() => {});
+    } else if (user?.role === 'attendant') {
+      api.get('/vans/mine').then(res => { setVans([res.data]); setSelectedVan(String(res.data.id)); }).catch(() => setOperation('shop'));
     }
   }, [user]);
 
@@ -111,10 +118,11 @@ export default function RecordCreditSale() {
       alert("Cart is empty.");
       return;
     }
-    if (!selectedShop) {
+    if (operation === 'shop' && !selectedShop) {
       alert("Please select a shop.");
       return;
     }
+    if (operation === 'van' && !selectedVan) { alert('No van is selected or assigned.'); return; }
     if (!customerName.trim() || !customerPhone.trim()) {
       alert("Please enter the customer's name and phone number.");
       return;
@@ -122,7 +130,7 @@ export default function RecordCreditSale() {
     await runSale(async () => {
       try {
       const response = await api.post("/sales", {
-        shop_id: selectedShop,
+        ...(operation === 'van' ? { van_id: selectedVan } : { shop_id: selectedShop }),
         items: cartItems.map(({ item_id, qty, unit_price }) => ({ item_id, qty, unit_price })),
         empty_cylinders: cartItems.filter(item => item.tracksEmptyCylinder && item.empty_qty).map(item => ({ item_id: item.item_id, qty: Number(item.empty_qty) })),
         payment_type: paymentType,
@@ -150,17 +158,22 @@ export default function RecordCreditSale() {
             <div className="bg-white dark:bg-gray-800 p-5 sm:p-8 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 transition-colors">
               <h2 className="text-xl font-bold text-gray-800 dark:text-white mb-6 flex items-center gap-2">
                 <Store size={24} className="text-purple-600 dark:text-purple-400" />
-                Select Shop
+                Credit sale operation
               </h2>
-              <div>
+              <label className="block text-sm font-bold text-gray-700 dark:text-gray-400 uppercase tracking-wider mb-2">Operation</label>
+              <select value={operation} onChange={e => { setOperation(e.target.value); setCartItems([]); }} className="w-full p-3 mb-4 border rounded-xl bg-gray-50 dark:bg-gray-900 dark:border-gray-700"><option value="shop">Shop sale</option>{user?.role === 'admin' && <option value="van">Van sale</option>}</select>
+              {operation === 'van' ? <div>
+                <label className="block text-sm font-bold text-gray-700 dark:text-gray-400 uppercase tracking-wider mb-2">Van</label>
+                <select value={selectedVan} onChange={e => { setSelectedVan(e.target.value); setCartItems([]); }} className="w-full p-3 border rounded-xl bg-gray-50 dark:bg-gray-900 dark:border-gray-700"><option value="">Choose van</option>{vans.map(v => <option key={v.id} value={v.id}>{v.registration_number}</option>)}</select>
+              </div> : <div>
                 <label className="block text-sm font-bold text-gray-700 dark:text-gray-400 uppercase tracking-wider mb-2">Acting For Shop</label>
                 <SearchableSelect
                   options={shops}
                   value={selectedShop}
-                  onChange={(e) => setSelectedShop(e.target.value)}
+                  onChange={(e) => { setSelectedShop(e.target.value); setCartItems([]); }}
                   placeholder="Choose Shop..."
                 />
-              </div>
+              </div>}
             </div>
           )}
 
@@ -233,6 +246,7 @@ export default function RecordCreditSale() {
                         cartItems={cartItems}
                         setCartItems={setCartItems}
                         onRemove={handleRemoveFromCart}
+                        operation={operation}
                       />
                     ))}
                   </div>
@@ -244,7 +258,7 @@ export default function RecordCreditSale() {
                           <th className="px-4 sm:px-8 py-4 text-center text-xs font-bold text-gray-500 dark:text-gray-400 uppercase border-b border-gray-100 dark:border-gray-700">Qty</th>
                           <th className="px-4 sm:px-8 py-4 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase border-b border-gray-100 dark:border-gray-700">Unit Price</th>
                           <th className="px-4 sm:px-8 py-4 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase border-b border-gray-100 dark:border-gray-700">Total</th>
-                          <th className="px-4 sm:px-8 py-4 text-center text-xs font-bold text-gray-500 dark:text-gray-400 uppercase border-b border-gray-100 dark:border-gray-700">Empty Returned</th>
+                          <th className="px-4 sm:px-8 py-4 text-center text-xs font-bold text-gray-500 dark:text-gray-400 uppercase border-b border-gray-100 dark:border-gray-700">{operation === 'van' ? 'Empty Collected' : 'Empty Returned'}</th>
                           <th className="px-4 sm:px-8 py-4 text-center text-xs font-bold text-gray-500 dark:text-gray-400 uppercase border-b border-gray-100 dark:border-gray-700">Action</th>
                         </tr>
                       </thead>

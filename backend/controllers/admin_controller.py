@@ -5,6 +5,7 @@ from models.tenant import Tenant
 from extensions import db
 from sqlalchemy.orm import joinedload
 from services.tenant_service import create_tenant
+from models.van import Van
 
 
 def create_tenant_controller(data):
@@ -33,6 +34,7 @@ def verify_attendant(user_id, data):
     shop_id = data.get("shop_id")
     if shop_id:
         u.shop_id = shop_id
+        Van.query.filter_by(attendant_id=u.id).update({"attendant_id": None})
     db.session.commit()
     return jsonify({"msg":"verified"}), 200
 
@@ -63,6 +65,7 @@ def delete_attendant_controller(user_id, identity):
     attendant = User.query.filter_by(id=user_id, role="attendant").first()
     if not attendant:
         return jsonify({"msg": "Attendant not found"}), 404
+    Van.query.filter_by(attendant_id=attendant.id).update({"attendant_id": None})
     db.session.delete(attendant)
     db.session.commit()
     return jsonify({"msg": "Attendant deleted"}), 200

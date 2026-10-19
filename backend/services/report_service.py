@@ -15,6 +15,7 @@ def get_global_financial_overview():
     try:
         # Exclude unpaid credit (BAADAYE) sales from totals until paid
         total_sales = db.session.query(func.sum(Sale.total_amount)).filter(
+            Sale.operation_type == 'shop',
             or_(Sale.sale_type != 'credit', Sale.status == 'paid')
         ).scalar() or 0
         total_expenses = db.session.query(func.sum(Expense.amount)).scalar() or 0
@@ -22,7 +23,7 @@ def get_global_financial_overview():
         # Optimized: Use SQL aggregation for gross profit
         gross_profit = db.session.query(
             func.sum((SaleItem.unit_price - SaleItem.unit_cost) * SaleItem.qty)
-        ).join(Sale).filter(or_(Sale.sale_type != 'credit', Sale.status == 'paid')).scalar() or 0
+        ).join(Sale).filter(Sale.operation_type == 'shop', or_(Sale.sale_type != 'credit', Sale.status == 'paid')).scalar() or 0
 
         # Optimized: Use SQL aggregation for combined stock value
         combined_stock_value = db.session.query(
@@ -61,6 +62,7 @@ def get_pnl_report(year, month=None, shop_id=None, period=None):
         end_date = datetime(year + 1, 1, 1)
 
     sales_query = db.session.query(func.sum(Sale.total_amount)).filter(
+        Sale.operation_type == 'shop',
         Sale.created_at >= start_date,
         Sale.created_at <= end_date
     )
@@ -68,6 +70,7 @@ def get_pnl_report(year, month=None, shop_id=None, period=None):
     sales_query = sales_query.filter(or_(Sale.sale_type != 'credit', Sale.status == 'paid'))
 
     cogs_query = db.session.query(func.sum(SaleItem.unit_cost * SaleItem.qty)).join(Sale).filter(
+        Sale.operation_type == 'shop',
         Sale.created_at >= start_date,
         Sale.created_at <= end_date
     )
@@ -133,10 +136,11 @@ def get_daily_sales(shop_id=None):
     end_of_day = datetime.combine(today, datetime.max.time())
 
     query = db.session.query(func.sum(Sale.total_amount)).filter(
+        Sale.operation_type == 'shop',
         Sale.created_at >= start_of_day,
         Sale.created_at <= end_of_day
     )
-    query = query.filter(or_(Sale.sale_type != 'credit', Sale.status == 'paid'))
+    query = query.filter(Sale.operation_type == 'shop', or_(Sale.sale_type != 'credit', Sale.status == 'paid'))
     if shop_id:
         query = query.filter(Sale.shop_id == shop_id)
 
@@ -149,19 +153,19 @@ def get_sales_summary(shop_id=None):
     
     # Base queries
     # Exclude unpaid credit sales from summary totals
-    today_query = db.session.query(func.sum(Sale.total_amount)).filter(Sale.created_at >= today_start)
+    today_query = db.session.query(func.sum(Sale.total_amount)).filter(Sale.operation_type == 'shop', Sale.created_at >= today_start)
     today_query = today_query.filter(or_(Sale.sale_type != 'credit', Sale.status == 'paid'))
     
     start_of_week = today_start - timedelta(days=now.weekday())
-    week_query = db.session.query(func.sum(Sale.total_amount)).filter(Sale.created_at >= start_of_week)
+    week_query = db.session.query(func.sum(Sale.total_amount)).filter(Sale.operation_type == 'shop', Sale.created_at >= start_of_week)
     week_query = week_query.filter(or_(Sale.sale_type != 'credit', Sale.status == 'paid'))
     
     start_of_month = datetime(now.year, now.month, 1)
-    month_query = db.session.query(func.sum(Sale.total_amount)).filter(Sale.created_at >= start_of_month)
+    month_query = db.session.query(func.sum(Sale.total_amount)).filter(Sale.operation_type == 'shop', Sale.created_at >= start_of_month)
     month_query = month_query.filter(or_(Sale.sale_type != 'credit', Sale.status == 'paid'))
     
     start_of_year = datetime(now.year, 1, 1)
-    year_query = db.session.query(func.sum(Sale.total_amount)).filter(Sale.created_at >= start_of_year)
+    year_query = db.session.query(func.sum(Sale.total_amount)).filter(Sale.operation_type == 'shop', Sale.created_at >= start_of_year)
     year_query = year_query.filter(or_(Sale.sale_type != 'credit', Sale.status == 'paid'))
 
     if shop_id:
@@ -224,19 +228,24 @@ def get_global_inventory():
     } for row in rows]
 
 
-def get_outstanding_credits(shop_id=None):
+def get_outstanding_credits(shop_id=None, van_id=None):
     """Return list of credit sales not fully paid with remaining balance."""
     from models.shop import Shop
     from models.user import User
-    query = Sale.query.filter(Sale.sale_type == 'credit').filter(Sale.status != 'paid')
+    from models.van import Van
+    query = Sale.query.filter(Sale.sale_type == 'credit', Sale.operation_type == ('van' if van_id else 'shop')).filter(Sale.status != 'paid')
     if shop_id:
         query = query.filter(Sale.shop_id == shop_id)
+    if van_id:
+        query = query.filter(Sale.van_id == van_id)
     sales = query.order_by(Sale.created_at.desc()).all()
     
     shop_ids = {s.shop_id for s in sales if s.shop_id}
     user_ids = {s.user_id for s in sales if s.user_id}
     
     shops = {s.id: s for s in Shop.query.filter(Shop.id.in_(shop_ids)).all()} if shop_ids else {}
+    van_ids = {s.van_id for s in sales if s.van_id}
+    vans = {v.id: v for v in Van.query.filter(Van.id.in_(van_ids)).all()} if van_ids else {}
     users = {u.id: u for u in User.query.filter(User.id.in_(user_ids)).all()} if user_ids else {}
     
     results = []
@@ -247,7 +256,9 @@ def get_outstanding_credits(shop_id=None):
         results.append({
             "id": s.id,
             "shop_id": s.shop_id,
-            "shop_name": shop.name if shop else 'N/A',
+            "shop_name": shop.name if shop else (f"Van {vans[s.van_id].registration_number}" if s.van_id in vans else 'N/A'),
+            "van_id": s.van_id,
+            "operation_type": s.operation_type,
             "attendant_name": user.name if user else 'N/A',
             "total_amount": float(s.total_amount or 0),
             "paid_amount": float(s.paid_amount or 0),
@@ -258,19 +269,25 @@ def get_outstanding_credits(shop_id=None):
     return results
 
 
-def get_credits_summary(shop_id=None):
+def get_credits_summary(shop_id=None, van_id=None):
     """Return summary metrics for credit sales."""
     try:
-        q_total_credit = db.session.query(func.sum(Sale.total_amount)).filter(Sale.sale_type == 'credit')
-        q_total_outstanding = db.session.query(func.sum((Sale.total_amount - Sale.paid_amount))).filter(Sale.sale_type == 'credit', Sale.status != 'paid')
-        q_outstanding_count = db.session.query(func.count(Sale.id)).filter(Sale.sale_type == 'credit', Sale.status != 'paid')
-        q_paid_count = db.session.query(func.count(Sale.id)).filter(Sale.sale_type == 'credit', Sale.status == 'paid')
+        channel = 'van' if van_id else 'shop'
+        q_total_credit = db.session.query(func.sum(Sale.total_amount)).filter(Sale.sale_type == 'credit', Sale.operation_type == channel)
+        q_total_outstanding = db.session.query(func.sum((Sale.total_amount - Sale.paid_amount))).filter(Sale.sale_type == 'credit', Sale.status != 'paid', Sale.operation_type == channel)
+        q_outstanding_count = db.session.query(func.count(Sale.id)).filter(Sale.sale_type == 'credit', Sale.status != 'paid', Sale.operation_type == channel)
+        q_paid_count = db.session.query(func.count(Sale.id)).filter(Sale.sale_type == 'credit', Sale.status == 'paid', Sale.operation_type == channel)
 
         if shop_id:
             q_total_credit = q_total_credit.filter(Sale.shop_id == shop_id)
             q_total_outstanding = q_total_outstanding.filter(Sale.shop_id == shop_id)
             q_outstanding_count = q_outstanding_count.filter(Sale.shop_id == shop_id)
             q_paid_count = q_paid_count.filter(Sale.shop_id == shop_id)
+        if van_id:
+            q_total_credit = q_total_credit.filter(Sale.van_id == van_id)
+            q_total_outstanding = q_total_outstanding.filter(Sale.van_id == van_id)
+            q_outstanding_count = q_outstanding_count.filter(Sale.van_id == van_id)
+            q_paid_count = q_paid_count.filter(Sale.van_id == van_id)
 
         total_credit = float(q_total_credit.scalar() or 0)
         total_outstanding = float(q_total_outstanding.scalar() or 0)
@@ -289,13 +306,16 @@ def get_credits_summary(shop_id=None):
         raise e
 
 
-def get_all_credit_sales(shop_id=None):
+def get_all_credit_sales(shop_id=None, van_id=None):
     """Return all credit sales (paid and unpaid) serialized for UI."""
     from models.shop import Shop
     from models.user import User
-    query = Sale.query.filter(Sale.sale_type == 'credit').options(selectinload(Sale.items)).order_by(Sale.created_at.desc(), Sale.id.desc())
+    from models.van import Van
+    query = Sale.query.filter(Sale.sale_type == 'credit', Sale.operation_type == ('van' if van_id else 'shop')).options(selectinload(Sale.items)).order_by(Sale.created_at.desc(), Sale.id.desc())
     if shop_id:
         query = query.filter(Sale.shop_id == shop_id)
+    if van_id:
+        query = query.filter(Sale.van_id == van_id)
     sales = query.all()
     
     shop_ids = {s.shop_id for s in sales if s.shop_id}
@@ -303,6 +323,8 @@ def get_all_credit_sales(shop_id=None):
     item_ids = {si.item_id for s in sales for si in s.items if si.item_id}
     
     shops = {s.id: s for s in Shop.query.filter(Shop.id.in_(shop_ids)).all()} if shop_ids else {}
+    van_ids = {s.van_id for s in sales if s.van_id}
+    vans = {v.id: v for v in Van.query.filter(Van.id.in_(van_ids)).all()} if van_ids else {}
     users = {u.id: u for u in User.query.filter(User.id.in_(user_ids)).all()} if user_ids else {}
     items = {i.id: i for i in Item.query.filter(Item.id.in_(item_ids)).all()} if item_ids else {}
     
@@ -333,7 +355,9 @@ def get_all_credit_sales(shop_id=None):
         results.append({
             "id": s.id,
             "shop_id": s.shop_id,
-            "shop_name": shop.name if shop else 'N/A',
+            "shop_name": shop.name if shop else (f"Van {vans[s.van_id].registration_number}" if s.van_id in vans else 'N/A'),
+            "van_id": s.van_id,
+            "operation_type": s.operation_type,
             "attendant_name": user.name if user else 'N/A',
             "customer_name": s.customer_name,
             "customer_phone": s.customer_phone,
@@ -443,7 +467,7 @@ def get_product_sales_analysis(year=None, month=None, shop_id=None, period=None)
     ).join(SaleItem, SaleItem.item_id == Item.id) \
      .join(Sale, SaleItem.sale_id == Sale.id)
 
-    overall_query = overall_query.filter(or_(Sale.sale_type != 'credit', Sale.status == 'paid'))
+    overall_query = overall_query.filter(Sale.operation_type == 'shop', or_(Sale.sale_type != 'credit', Sale.status == 'paid'))
 
     if start_date:
         overall_query = overall_query.filter(Sale.created_at >= start_date)

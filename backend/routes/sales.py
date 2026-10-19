@@ -5,6 +5,7 @@ from controllers.sale_controller import (
     current_months_sales_controller, current_years_sales_controller, 
     get_all_sales_controller, delete_sale_controller, update_sale_controller,
     add_sale_payment_controller,
+    get_van_sales_controller,
 )
 from flask_jwt_extended import jwt_required
 
@@ -44,6 +45,11 @@ def current_years_sales():
 @jwt_required()
 def get_shop_sales(shop_id):
     return get_shop_sales_controller(shop_id)
+
+@bp.route("/van/<int:van_id>", methods=["GET"])
+@jwt_required()
+def get_van_sales(van_id):
+    return get_van_sales_controller(van_id)
 
 @bp.route("/<int:sale_id>", methods=["DELETE"])
 @jwt_required()
