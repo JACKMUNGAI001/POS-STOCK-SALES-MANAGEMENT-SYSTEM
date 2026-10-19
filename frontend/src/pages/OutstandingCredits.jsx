@@ -33,8 +33,8 @@ export default function OutstandingCredits(){
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-black">Outstanding Credit Sales</h1>
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-xl sm:text-2xl font-black">Outstanding Credit Sales</h1>
       </div>
       <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border p-4">
         {loading ? (
@@ -42,7 +42,15 @@ export default function OutstandingCredits(){
         ) : credits.length === 0 ? (
           <div className="p-8 text-center">No outstanding credits.</div>
         ) : (
-          <table className="w-full text-sm">
+          <div className="space-y-3 md:hidden">
+            {credits.map(c => <article key={c.id} className="rounded-xl border border-gray-100 dark:border-gray-700 p-4">
+              <div className="flex items-start justify-between gap-3"><div><h2 className="font-bold">Sale #{c.id}</h2><p className="text-sm text-gray-500">{c.shop_name || 'Van sale'}{c.attendant_name ? ` · ${c.attendant_name}` : ''}</p><p className="text-xs text-gray-500 mt-1">{c.customer_name || 'Customer not named'}{c.customer_phone ? ` · ${c.customer_phone}` : ''}</p></div><span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-bold text-amber-700">Unpaid</span></div>
+              <div className="grid grid-cols-3 gap-2 mt-4 text-xs"><div><span className="block text-gray-500">Total</span><strong>KES {Number(c.total_amount).toLocaleString()}</strong></div><div><span className="block text-gray-500">Paid</span><strong>KES {Number(c.paid_amount).toLocaleString()}</strong></div><div><span className="block text-gray-500">Remaining</span><strong className="text-amber-700">KES {Number(c.remaining).toLocaleString()}</strong></div></div>
+              <div className="mt-4 flex gap-2"><button onClick={() => handlePay(c)} className="flex-1 bg-green-50 text-green-700 px-3 py-2 rounded-lg inline-flex items-center justify-center gap-2 font-bold"><Wallet size={14} /> Record payment</button>{c.receipt_uuid && <a href={`${API_BASE}/receipts/${c.receipt_uuid}`} target="_blank" rel="noreferrer" aria-label="View receipt" className="border rounded-lg px-3 py-2 text-blue-600"><FileText size={16} /></a>}</div>
+            </article>)}
+          </div>
+        )}
+        {!loading && credits.length > 0 && <div className="hidden overflow-x-auto md:block"><table className="w-full text-sm">
             <thead className="text-xs text-gray-500 uppercase">
               <tr>
                 <th className="px-4 py-2 text-left">ID</th>
@@ -74,8 +82,7 @@ export default function OutstandingCredits(){
                 </tr>
               ))}
             </tbody>
-          </table>
-        )}
+          </table></div>}
       </div>
     </div>
   )

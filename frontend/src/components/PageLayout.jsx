@@ -19,7 +19,7 @@ export default function PageLayout({ children, role, title }) {
         <Sidebar role={currentRole} onClose={() => setIsSidebarOpen(false)} />
       </div>
 
-      <main className="flex-1 p-4 md:p-8 max-w-7xl mx-auto w-full relative">
+      <main className="min-w-0 flex-1 p-3 sm:p-4 md:p-8 max-w-7xl mx-auto w-full relative">
         <Header onMenuClick={toggleSidebar} />
         {title && <h1 className="text-xl md:text-2xl font-bold text-gray-800 dark:text-white mb-6">{title}</h1>}
         <div className="w-full overflow-hidden">

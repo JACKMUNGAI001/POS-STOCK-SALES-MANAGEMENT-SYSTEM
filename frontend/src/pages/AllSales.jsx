@@ -244,7 +244,7 @@ export default function AllSales() {
         </div>
 
         {!searchQuery && totalPages > 1 && (
-          <div className="mt-4 flex items-center justify-between gap-4">
+          <div className="mt-4 flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center sm:gap-4">
             <span className="text-sm text-gray-500 dark:text-gray-400">
               Showing {(currentPage - 1) * 25 + 1}–{Math.min(currentPage * 25, totalSales)} of {totalSales}
             </span>

@@ -18,8 +18,8 @@ export default function Header({ onMenuClick }) {
   };
 
   return (
-    <header className="bg-transparent mb-8 flex justify-between items-center gap-4">
-      <div className="flex items-center gap-3 md:gap-6">
+    <header className="bg-transparent mb-6 md:mb-8 flex flex-wrap justify-between items-center gap-2 sm:gap-4">
+      <div className="flex min-w-0 items-center gap-2 md:gap-6">
         <button
           onClick={onMenuClick}
           className="lg:hidden p-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 rounded-lg shadow-sm"
@@ -42,7 +42,7 @@ export default function Header({ onMenuClick }) {
         </div>
       </div>
 
-      <div className="flex items-center gap-2 md:gap-4">
+      <div className="ml-auto flex max-w-full items-center gap-2 md:gap-4">
         <div className="flex items-center gap-1 md:gap-2 px-2 md:px-4 py-2 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 transition-colors relative">
           {isSearchOpen ? (
             <div className="flex items-center gap-2 animate-in fade-in slide-in-from-right-4 duration-300">
@@ -65,7 +65,7 @@ export default function Header({ onMenuClick }) {
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     autoFocus
-                    className="pl-10 pr-2 py-1.5 bg-transparent rounded-lg text-sm text-gray-700 dark:text-gray-200 focus:outline-none transition-all w-32 sm:w-48 md:w-64"
+                    className="pl-9 pr-1 py-1.5 bg-transparent rounded-lg text-sm text-gray-700 dark:text-gray-200 focus:outline-none transition-all w-24 sm:w-48 md:w-64"
                   />
                 </div>
               </div>

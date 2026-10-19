@@ -86,7 +86,15 @@ export default function TransferHistory() {
                 )}
               </div>
             ) : (
-              <div className="h-full max-h-none overflow-x-auto overflow-y-auto custom-scrollbar sm:h-auto sm:max-h-96">
+              <>
+              <div className="space-y-3 p-3 md:hidden">
+                {filteredTransfers.map(t => <article key={t.id} className="rounded-xl border border-gray-100 p-4 dark:border-gray-700">
+                  <div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="font-bold break-words">{t.from_shop_name} <span className="text-blue-600">→ {t.to_shop_name}</span></p><p className="mt-1 text-xs text-gray-500">{formatDate(t.created_at)} · {t.status}</p></div><div className="flex shrink-0 gap-1"><button onClick={() => setEditingTransfer(t)} className="rounded-lg p-2 text-blue-600" aria-label="Edit transfer"><Edit2 size={16}/></button><button onClick={() => handleDelete(t.id)} className="rounded-lg p-2 text-red-600" aria-label="Delete transfer"><Trash2 size={16}/></button></div></div>
+                  <div className="mt-3 flex flex-wrap gap-1">{t.items?.map((it, idx) => <span key={idx} className="rounded bg-gray-100 px-2 py-1 text-xs font-semibold dark:bg-gray-700">{it.item_name} × {it.qty}</span>)}</div>
+                  <p className="mt-3 text-sm text-gray-600 dark:text-gray-300 break-words">{t.notes || 'No notes provided'}</p><p className="mt-1 text-xs text-gray-500">{t.created_by_name}</p>
+                </article>)}
+              </div>
+              <div className="hidden h-full max-h-none overflow-x-auto overflow-y-auto custom-scrollbar sm:h-auto sm:max-h-96 md:block">
                 <table className="min-w-[800px] md:min-w-full relative border-collapse">
                   <thead className="bg-gray-50/90 dark:bg-gray-900/90 sticky top-0 z-10 backdrop-blur-sm transition-colors">
                     <tr className="transition-colors">
@@ -162,6 +170,7 @@ export default function TransferHistory() {
                   </tbody>
                 </table>
               </div>
+              </>
           )}
         </div>
       </div>

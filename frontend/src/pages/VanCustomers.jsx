@@ -52,8 +52,15 @@ export default function VanCustomers() {
         <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search name or phone" className="p-3 border rounded-xl dark:bg-gray-900 dark:border-gray-700" />
       </div>
       {error && <p className="text-red-600 mb-4">{error}</p>}
+      <div className="space-y-3 md:hidden">
+        {filteredCustomers.map(customer => <button key={customer.id} type="button" onClick={() => openCustomer(customer)} className="w-full rounded-xl border border-gray-100 dark:border-gray-700 p-4 text-left hover:bg-blue-50 dark:hover:bg-gray-700/50">
+          <div className="flex items-start justify-between gap-3"><div className="min-w-0"><div className="font-bold text-blue-700 dark:text-blue-300 truncate">{customer.name}</div><div className="text-sm text-gray-500">{customer.phone}</div></div><span className="shrink-0 text-xs text-gray-500">{customer.sale_count} sales</span></div>
+          <div className="grid grid-cols-2 gap-3 mt-3 text-sm"><div><span className="block text-xs text-gray-500">Purchase total</span><strong>{currency(customer.total_sales)}</strong></div><div><span className="block text-xs text-gray-500">Credit owed</span><strong>{currency(customer.outstanding_balance)}</strong></div></div>
+        </button>)}
+        {!filteredCustomers.length && <p className="p-5 text-center text-gray-500">No van customer records found.</p>}
+      </div>
       <div className="overflow-x-auto">
-        <table className="min-w-full text-sm">
+        <table className="hidden min-w-full text-sm md:table">
           <thead><tr className="text-left text-xs uppercase text-gray-500 border-b dark:border-gray-700"><th className="p-3">Customer</th><th className="p-3">Phone</th><th className="p-3">Van purchases</th><th className="p-3">Purchase total</th><th className="p-3">Credit owed</th><th className="p-3">Last purchase</th></tr></thead>
           <tbody>
             {filteredCustomers.map(customer => <tr key={customer.id} onClick={() => openCustomer(customer)} className="border-b dark:border-gray-700 cursor-pointer hover:bg-blue-50 dark:hover:bg-gray-700/50">
@@ -63,7 +70,7 @@ export default function VanCustomers() {
           </tbody>
         </table>
       </div>
-      <div className="flex items-center justify-between mt-4 text-sm">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mt-4 text-sm">
         <span className="text-gray-500">{listMeta.total} customers · Page {listPage} of {Math.max(1, listMeta.pages)}</span>
         <div className="flex gap-2"><button disabled={listPage <= 1} onClick={() => loadCustomers(listPage - 1)} className="px-3 py-2 border rounded-lg disabled:opacity-40">Previous</button><button disabled={listPage >= listMeta.pages} onClick={() => loadCustomers(listPage + 1)} className="px-3 py-2 border rounded-lg disabled:opacity-40">Next</button></div>
       </div>
@@ -79,7 +86,7 @@ export default function VanCustomers() {
         <div className="flex flex-wrap gap-x-4 font-semibold"><span>Sale #{sale.id}</span><span>{sale.van_registration || sale.shop_name}</span><span>{sale.sale_type === 'credit' ? `Credit · ${sale.status} · Owes ${currency(Math.max(0, sale.total_amount - sale.paid_amount))}` : `Regular · ${sale.payment_type || 'Paid'}`}</span><span>{currency(sale.total_amount)}</span><span>{new Date(sale.created_at).toLocaleString()}</span></div>
         <p className="text-sm text-gray-600 dark:text-gray-300">{sale.items.map(item => `${item.item_name}: ${item.qty} × ${currency(item.unit_price)}; ${item.returned_empty_qty || 0} empty returned`).join(' · ')}</p>
       </article>) : <p className="text-gray-500">No recorded van purchases.</p>}
-      <div className="flex items-center justify-between mt-4 text-sm"><span className="text-gray-500">Page {selected.page} of {Math.max(1, selected.pages)}</span><div className="flex gap-2"><button disabled={selected.page <= 1} onClick={() => openCustomer(selected, selected.page - 1)} className="px-3 py-2 border rounded-lg disabled:opacity-40">Previous</button><button disabled={selected.page >= selected.pages} onClick={() => openCustomer(selected, selected.page + 1)} className="px-3 py-2 border rounded-lg disabled:opacity-40">Next</button></div></div>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mt-4 text-sm"><span className="text-gray-500">Page {selected.page} of {Math.max(1, selected.pages)}</span><div className="flex gap-2"><button disabled={selected.page <= 1} onClick={() => openCustomer(selected, selected.page - 1)} className="px-3 py-2 border rounded-lg disabled:opacity-40">Previous</button><button disabled={selected.page >= selected.pages} onClick={() => openCustomer(selected, selected.page + 1)} className="px-3 py-2 border rounded-lg disabled:opacity-40">Next</button></div></div>
     </section>}
   </div>
 }

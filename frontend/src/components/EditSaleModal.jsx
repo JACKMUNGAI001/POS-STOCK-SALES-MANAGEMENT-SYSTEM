@@ -107,7 +107,7 @@ export default function EditSaleModal({ sale, onClose, onUpdate }) {
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden animate-in fade-in zoom-in duration-200 transition-colors flex flex-col max-h-[90vh]">
-        <div className="bg-blue-600 p-6 text-white flex justify-between items-center shrink-0">
+        <div className="bg-blue-600 p-4 sm:p-6 text-white flex justify-between items-center gap-3 shrink-0">
           <div>
             <h3 className="text-xl font-bold flex items-center gap-2">
               <ShoppingCart size={24} /> Edit Sale Record #{sale.id}
@@ -119,7 +119,7 @@ export default function EditSaleModal({ sale, onClose, onUpdate }) {
           </button>
         </div>
 
-        <div className="p-8 overflow-y-auto custom-scrollbar flex-1">
+        <div className="p-4 sm:p-8 overflow-y-auto custom-scrollbar flex-1">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2 space-y-6">
               <div className="bg-gray-50 dark:bg-gray-900/50 p-6 rounded-xl border border-gray-100 dark:border-gray-700">
