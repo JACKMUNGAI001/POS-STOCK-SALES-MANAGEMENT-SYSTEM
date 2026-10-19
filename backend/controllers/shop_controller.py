@@ -2,12 +2,20 @@ from flask import request, jsonify
 from flask_jwt_extended import get_jwt_identity
 from models.shop import Shop
 from extensions import db
+from utils.auth_utils import get_shop_id_for_manager, get_shop_id_for_attendant
 
 def list_shops():
-    tenant_id = request.args.get("tenant_id", type=int)
+    identity = get_jwt_identity() or {}
+    tenant_id = identity.get("tenant_id")
     query = Shop.query
     if tenant_id is not None:
         query = query.filter_by(tenant_id=tenant_id)
+    if identity.get("role") == "manager":
+        shop_id = get_shop_id_for_manager()
+        query = query.filter_by(id=shop_id) if shop_id else query.filter(Shop.id == -1)
+    elif identity.get("role") == "attendant":
+        shop_id = get_shop_id_for_attendant()
+        query = query.filter_by(id=shop_id) if shop_id else query.filter(Shop.id == -1)
     shops = query.order_by(Shop.name.asc()).all()
     out = [{"id":s.id,"name":s.name,"address":s.address,"tenant_id":s.tenant_id} for s in shops]
     return jsonify(out), 200

@@ -86,15 +86,28 @@ export default function AdminDashboard(){
       }catch(err){ console.error('Error fetching credits summary', err) }
     }
 
-  const handleVerifyAttendant = async (userId, shopId) => {
-    if(!shopId) return;
+  const handleVerifyAttendant = async (userId) => {
     try {
-      await api.patch(`/admin/attendants/${userId}/verify`, { is_verified: true, shop_id: shopId })
-      alert('Attendant verified successfully!')
+      await api.patch(`/admin/attendants/${userId}/verify`, { is_verified: true })
+      alert('Attendant verified. Assign them to a van from Van Management.')
       fetchPendingAttendants()
       fetchAllAttendants()
     } catch (err) {
       alert(`Error verifying attendant: ${err.response?.data?.msg || err.message}`)
+    }
+  }
+
+  const handleManagerShopChange = async (manager, shopId) => {
+    try {
+      await api.patch(`/admin/managers/${manager.id}/shop`, { shop_id: shopId ? Number(shopId) : null })
+      setManagers(current => current.map(item => item.id === manager.id ? {
+        ...item,
+        shop_id: shopId ? Number(shopId) : null,
+        shop_name: shops.find(shop => Number(shop.id) === Number(shopId))?.name || null,
+      } : item))
+    } catch (err) {
+      alert(`Error assigning manager to shop: ${err.response?.data?.msg || err.message}`)
+      fetchManagers()
     }
   }
 
@@ -237,7 +250,7 @@ export default function AdminDashboard(){
 
         <div className="mt-10">
           <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-4 tracking-tight border-l-4 border-l-amber-500 pl-3 text-sm uppercase tracking-widest text-gray-400 dark:text-gray-500">
-            Manager Restock Permission
+            Shop Managers
           </h3>
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
             {managers.length === 0 ? (
@@ -248,9 +261,18 @@ export default function AdminDashboard(){
                   <div key={manager.id} className="p-5 flex flex-col sm:flex-row gap-4 sm:items-center sm:justify-between">
                     <div>
                       <p className="font-bold text-gray-900 dark:text-white">{manager.name}</p>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">{manager.email} · All products</p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">{manager.email}</p>
                     </div>
-                    <div className="flex items-center gap-3 self-end sm:self-auto">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-3 self-stretch sm:self-auto">
+                      <select
+                        value={manager.shop_id || ''}
+                        onChange={e => handleManagerShopChange(manager, e.target.value)}
+                        className="p-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white"
+                        aria-label={`Assign ${manager.name} to a shop`}
+                      >
+                        <option value="">Assign to shop</option>
+                        {shops.map(shop => <option key={shop.id} value={shop.id}>{shop.name}</option>)}
+                      </select>
                       <span className={`text-xs font-black uppercase tracking-wider px-3 py-1.5 rounded-full transition-colors ${manager.can_restock ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400'}`}>
                         {manager.can_restock ? 'Enabled' : 'Disabled'}
                       </span>
@@ -291,10 +313,7 @@ export default function AdminDashboard(){
                       <div><p className="font-bold text-gray-900 dark:text-white">{attendant.name}</p><div className="flex items-center gap-2 text-gray-500 dark:text-gray-400 text-sm"><Mail size={14} /><span>{attendant.email}</span></div></div>
                     </div>
                     <div className="flex items-center gap-2 w-full sm:w-auto">
-                      <select className="flex-1 sm:flex-none p-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all" onChange={(e) => handleVerifyAttendant(attendant.id, e.target.value)}>
-                        <option value="">Assign Shop</option>
-                        {shops.map(shop => (<option key={shop.id} value={shop.id}>{shop.name}</option>))}
-                      </select>
+                      <button type="button" onClick={() => handleVerifyAttendant(attendant.id)} className="w-full sm:w-auto bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-green-700">Verify attendant</button>
                     </div>
                   </div>
                 ))}
@@ -313,7 +332,7 @@ export default function AdminDashboard(){
                   <div key={attendant.id} className="p-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div className="flex items-center gap-4">
                       <div className="relative"><div className="w-12 h-12 bg-blue-50 dark:bg-blue-900/30 rounded-full flex items-center justify-center text-blue-600 dark:text-blue-400"><UserCircle size={32} /></div>{attendant.is_verified && (<div className="absolute -top-1 -right-1 bg-white dark:bg-gray-800 rounded-full p-0.5 transition-colors"><ShieldCheck size={16} className="text-green-500" fill="currentColor" /></div>)}</div>
-                      <div><div className="flex items-center gap-2"><p className="font-bold text-gray-900 dark:text-white">{attendant.name}</p>{attendant.is_verified && <span className="text-[10px] bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Verified</span>}</div><div className="flex items-center gap-3 text-gray-500 dark:text-gray-400 text-xs transition-colors"><span className="flex items-center gap-1"><Mail size={12} /> {attendant.email}</span><span className="flex items-center gap-1"><Store size={12} /> {attendant.shop_name || "Unassigned"}</span></div></div>
+                      <div><div className="flex items-center gap-2"><p className="font-bold text-gray-900 dark:text-white">{attendant.name}</p>{attendant.is_verified && <span className="text-[10px] bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Verified</span>}</div><div className="flex items-center gap-3 text-gray-500 dark:text-gray-400 text-xs transition-colors"><span className="flex items-center gap-1"><Mail size={12} /> {attendant.email}</span><span className="flex items-center gap-1"><Store size={12} /> {attendant.van_registration ? `Van ${attendant.van_registration}` : "No van assigned"}</span></div></div>
                     </div>
                     <button onClick={() => handleRemoveAttendant(attendant.id)} className="w-full sm:w-auto bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 px-4 py-2 rounded-xl text-sm font-bold hover:bg-red-600 hover:text-white transition-all flex items-center justify-center gap-2"><UserX size={16} /> Remove</button>
                   </div>

@@ -130,7 +130,7 @@ export default function ManagerDashboard(){
     <>
         <div className="mb-6 flex items-center gap-2 text-purple-700 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/30 px-4 py-2 rounded-lg border border-purple-100 dark:border-purple-800 w-fit transition-colors">
           <MapPin size={20} />
-          <span className="font-bold">Manager View: All Locations</span>
+          <span className="font-bold">Manager View: {shops[0]?.name || user?.shop_name || 'Assigned shop'}</span>
         </div>
 
         {/* QUICK ACTIONS SECTION */}

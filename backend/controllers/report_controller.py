@@ -13,7 +13,7 @@ from services.report_service import get_outstanding_credits
 from services.report_service import get_credits_summary, get_all_credit_sales
 from utils.timezone_utils import get_local_time
 from flask_jwt_extended import get_jwt_identity
-from utils.auth_utils import get_shop_id_for_attendant
+from utils.auth_utils import get_shop_id_for_attendant, get_shop_id_for_manager
 from utils.auth_utils import get_van_id_for_attendant
 from models.van import Van
 
@@ -26,6 +26,8 @@ def dashboard_summary_controller():
     user_identity = get_jwt_identity()
     if user_identity.get("role") == "attendant":
         shop_id = get_shop_id_for_attendant()
+    elif user_identity.get("role") == "manager":
+        shop_id = get_shop_id_for_manager()
     
     summary = get_dashboard_summary(shop_id)
     return jsonify(summary), 200
@@ -41,6 +43,8 @@ def pnl_report_controller():
     user_identity = get_jwt_identity()
     if user_identity.get("role") == "attendant":
         shop_id = get_shop_id_for_attendant()
+    elif user_identity.get("role") == "manager":
+        shop_id = get_shop_id_for_manager()
     
     report = get_pnl_report(year, month, shop_id, period)
     return jsonify(report), 200
@@ -50,6 +54,8 @@ def daily_sales_report_controller():
     user_identity = get_jwt_identity()
     if user_identity.get("role") == "attendant":
         shop_id = get_shop_id_for_attendant()
+    elif user_identity.get("role") == "manager":
+        shop_id = get_shop_id_for_manager()
     daily_sales = get_daily_sales(shop_id)
     return jsonify(daily_sales), 200
 
@@ -58,6 +64,8 @@ def sales_summary_controller():
     user_identity = get_jwt_identity()
     if user_identity.get("role") == "attendant":
         shop_id = get_shop_id_for_attendant()
+    elif user_identity.get("role") == "manager":
+        shop_id = get_shop_id_for_manager()
     summary = get_sales_summary(shop_id)
     return jsonify(summary), 200
 
@@ -67,11 +75,17 @@ def stock_summary_by_category_controller():
     user_identity = get_jwt_identity()
     if user_identity.get("role") == "attendant":
         shop_id = get_shop_id_for_attendant()
+    elif user_identity.get("role") == "manager":
+        shop_id = get_shop_id_for_manager()
     
     summary = get_stock_summary_by_category(shop_id)
     return jsonify(summary), 200
 
 def global_inventory_controller():
+    identity = get_jwt_identity() or {}
+    if identity.get("role") == "manager":
+        shop_id = get_shop_id_for_manager()
+        return jsonify([row for row in get_global_inventory() if row["shop_id"] == shop_id]), 200
     return jsonify(get_global_inventory()), 200
 
 def product_sales_analysis_controller():
@@ -79,6 +93,9 @@ def product_sales_analysis_controller():
     year = request.args.get('year', type=int)
     month = request.args.get('month', type=int)
     period = request.args.get('period')
+    identity = get_jwt_identity() or {}
+    if identity.get("role") == "manager":
+        shop_id = get_shop_id_for_manager()
     
     analysis = get_product_sales_analysis(year=year, month=month, shop_id=shop_id, period=period)
     return jsonify(analysis), 200
@@ -89,6 +106,8 @@ def outstanding_credits_controller():
     user_identity = get_jwt_identity()
     if user_identity.get("role") == "attendant":
         shop_id = get_shop_id_for_attendant()
+    elif user_identity.get("role") == "manager":
+        shop_id = get_shop_id_for_manager()
     van_id = get_van_id_for_attendant() if user_identity.get("role") == "attendant" else request.args.get('van_id', type=int)
     if user_identity.get("role") == "attendant" and not van_id and not shop_id: return jsonify([]), 200
     if user_identity.get("role") == "manager" and van_id: return jsonify({"msg": "Not authorized for van credits"}), 403
@@ -102,6 +121,8 @@ def credits_summary_controller():
     user_identity = get_jwt_identity()
     if user_identity.get("role") == "attendant":
         shop_id = get_shop_id_for_attendant()
+    elif user_identity.get("role") == "manager":
+        shop_id = get_shop_id_for_manager()
     van_id = get_van_id_for_attendant() if user_identity.get("role") == "attendant" else request.args.get('van_id', type=int)
     if user_identity.get("role") == "attendant" and not van_id and not shop_id: return jsonify({"total_credit_sales": 0, "total_outstanding_amount": 0, "outstanding_count": 0, "paid_count": 0}), 200
     if user_identity.get("role") == "manager" and van_id: return jsonify({"msg": "Not authorized for van credits"}), 403
@@ -115,6 +136,8 @@ def credit_sales_controller():
     user_identity = get_jwt_identity()
     if user_identity.get("role") == "attendant":
         shop_id = get_shop_id_for_attendant()
+    elif user_identity.get("role") == "manager":
+        shop_id = get_shop_id_for_manager()
     van_id = get_van_id_for_attendant() if user_identity.get("role") == "attendant" else request.args.get('van_id', type=int)
     if user_identity.get("role") == "attendant" and not van_id and not shop_id: return jsonify([]), 200
     if user_identity.get("role") == "manager" and van_id: return jsonify({"msg": "Not authorized for van credits"}), 403

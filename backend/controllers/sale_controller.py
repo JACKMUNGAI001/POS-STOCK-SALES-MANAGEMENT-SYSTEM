@@ -8,7 +8,7 @@ from services.sale_service import add_sale_payment, get_sales_by_van
 from models.sale import Sale, SaleItem
 from extensions import db
 from flask_jwt_extended import get_jwt_identity
-from utils.auth_utils import get_shop_id_for_attendant
+from utils.auth_utils import get_shop_id_for_attendant, get_shop_id_for_manager
 from utils.auth_utils import get_van_id_for_attendant
 from models.van import Van
 
@@ -29,6 +29,11 @@ def create_sale_controller():
         else:
             van_id = None
             shop_id = get_shop_id_for_attendant()
+    elif user.get("role") == "manager":
+        shop_id = get_shop_id_for_manager()
+        van_id = None
+        if not shop_id:
+            return jsonify({"msg": "You must be assigned to a shop before recording sales"}), 403
     elif van_id:
         if user.get("role") != "admin":
             return jsonify({"msg": "Only an admin can record a sale for a van"}), 403
@@ -53,11 +58,17 @@ def get_all_sales_controller():
         return jsonify([]), 200
     if shop_id:
         sales = get_sales_by_shop(shop_id, page, per_page)
+    elif identity.get("role") == "manager":
+        manager_shop_id = get_shop_id_for_manager()
+        sales = get_sales_by_shop(manager_shop_id, page, per_page) if manager_shop_id else []
     else:
         sales = get_all_sales(page, per_page)
     return jsonify(sales), 200
 
 def get_shop_sales_controller(shop_id):
+    identity = get_jwt_identity() or {}
+    if identity.get("role") == "manager" and get_shop_id_for_manager() != shop_id:
+        return jsonify({"msg": "Not authorized for this shop"}), 403
     page = request.args.get("page", type=int)
     per_page = request.args.get("per_page", default=25, type=int)
     sales = get_sales_by_shop(shop_id, page, per_page)
@@ -78,24 +89,28 @@ def get_van_sales_controller(van_id):
 
 def todays_sales_controller():
     shop_id = get_shop_id_for_attendant()
+    if (get_jwt_identity() or {}).get("role") == "manager": shop_id = get_shop_id_for_manager()
     van_id = get_van_id_for_attendant()
     sales = get_todays_sales(shop_id, van_id)
     return jsonify(sales), 200
 
 def current_weeks_sales_controller():
     shop_id = get_shop_id_for_attendant()
+    if (get_jwt_identity() or {}).get("role") == "manager": shop_id = get_shop_id_for_manager()
     van_id = get_van_id_for_attendant()
     sales = get_current_weeks_sales(shop_id, van_id)
     return jsonify(sales), 200
 
 def current_months_sales_controller():
     shop_id = get_shop_id_for_attendant()
+    if (get_jwt_identity() or {}).get("role") == "manager": shop_id = get_shop_id_for_manager()
     van_id = get_van_id_for_attendant()
     sales = get_current_months_sales(shop_id, van_id)
     return jsonify(sales), 200
 
 def current_years_sales_controller():
     shop_id = get_shop_id_for_attendant()
+    if (get_jwt_identity() or {}).get("role") == "manager": shop_id = get_shop_id_for_manager()
     van_id = get_van_id_for_attendant()
     sales = get_current_years_sales(shop_id, van_id)
     return jsonify(sales), 200

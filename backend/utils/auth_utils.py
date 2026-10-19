@@ -16,6 +16,14 @@ def get_shop_id_for_attendant():
             shop_id = u.shop_id
     return shop_id
 
+def get_shop_id_for_manager():
+    """Resolve the manager's assigned shop from the current account record."""
+    identity = get_jwt_identity() or {}
+    if identity.get("role") != "manager":
+        return None
+    user = User.query.filter_by(id=identity.get("id"), tenant_id=identity.get("tenant_id"), role="manager").first()
+    return user.shop_id if user else None
+
 def get_van_id_for_attendant():
     identity = get_jwt_identity()
     if not identity or identity.get("role") != "attendant":

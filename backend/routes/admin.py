@@ -1,5 +1,5 @@
 from flask import Blueprint, request
-from controllers.admin_controller import pending_attendants, verify_attendant, list_all_attendants_controller, delete_attendant_controller, list_managers_controller, set_manager_restock_permission, my_restock_permission, create_tenant_controller
+from controllers.admin_controller import pending_attendants, verify_attendant, list_all_attendants_controller, delete_attendant_controller, list_managers_controller, set_manager_restock_permission, assign_manager_shop, my_restock_permission, create_tenant_controller
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
 bp = Blueprint("admin", __name__)
@@ -24,8 +24,7 @@ def verify(user_id):
     identity = get_jwt_identity()
     if identity.get("role") != "admin":
         return {"msg":"admin only"}, 403
-    data = request.get_json() or {}
-    return verify_attendant(user_id, data)
+    return verify_attendant(user_id, identity)
 
 @bp.route("/attendants/all", methods=["GET"])
 @jwt_required()
@@ -43,6 +42,12 @@ def delete_attendant(user_id):
 @jwt_required()
 def managers():
     return list_managers_controller(get_jwt_identity())
+
+@bp.route("/managers/<int:user_id>/shop", methods=["PATCH"])
+@jwt_required()
+def update_manager_shop(user_id):
+    data = request.get_json() or {}
+    return assign_manager_shop(user_id, data.get("shop_id"), get_jwt_identity())
 
 @bp.route("/managers/<int:user_id>/restock-permission", methods=["PATCH"])
 @jwt_required()
