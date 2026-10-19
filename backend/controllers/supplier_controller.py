@@ -10,7 +10,8 @@ from models.supplier import Supplier, SupplierInvoice
 from flask_jwt_extended import get_jwt_identity
 
 def list_suppliers_controller():
-    suppliers = list_suppliers()
+    identity = get_jwt_identity() or {}
+    suppliers = list_suppliers(tenant_id=identity.get("tenant_id"))
     out = []
     for s in suppliers:
         out.append({
@@ -36,7 +37,8 @@ def create_supplier_controller():
         phone=data.get("phone"),
         email=data.get("email"),
         address=data.get("address"),
-        item_ids=data.get("item_ids", [])
+        item_ids=data.get("item_ids", []),
+        tenant_id=(get_jwt_identity() or {}).get("tenant_id"),
     )
     return jsonify({"id": s.id, "name": s.name}), 201
 

@@ -5,9 +5,10 @@ from models.product import Item
 from datetime import datetime
 from utils.timezone_utils import get_local_time
 from utils.helpers import calculate_total_buy_price
+from sqlalchemy import or_
 
-def create_supplier(name, contact_person=None, phone=None, email=None, address=None, item_ids=None):
-    s = Supplier(name=name, contact_person=contact_person, phone=phone, email=email, address=address)
+def create_supplier(name, contact_person=None, phone=None, email=None, address=None, item_ids=None, tenant_id=None):
+    s = Supplier(tenant_id=tenant_id, name=name, contact_person=contact_person, phone=phone, email=email, address=address)
     if item_ids:
         items = Item.query.filter(Item.id.in_(item_ids)).all()
         s.supplied_products = items
@@ -15,8 +16,11 @@ def create_supplier(name, contact_person=None, phone=None, email=None, address=N
     db.session.commit()
     return s
 
-def list_suppliers():
-    return Supplier.query.order_by(Supplier.name.asc()).all()
+def list_suppliers(tenant_id=None):
+    query = Supplier.query
+    if tenant_id is not None:
+        query = query.filter(or_(Supplier.tenant_id == tenant_id, Supplier.tenant_id.is_(None)))
+    return query.order_by(Supplier.name.asc()).all()
 
 def update_supplier(supplier_id, **kwargs):
     s = Supplier.query.get(supplier_id)

@@ -3,6 +3,7 @@ from models.sale import Sale, SaleItem, SalePayment, ensure_sale_type_column
 from models.stock import ShopStock, StockMovement, StockBatch, EmptyCylinderStock, SaleCylinderReturn
 from models.shop import Shop
 from models.user import User
+from models.customer import Customer
 from models.product import Item, Category
 from services.receipt_service import create_receipt
 from datetime import datetime
@@ -34,6 +35,12 @@ def get_sale_type_label(sale_type=None):
     if normalized in {"credit", "baadaye", "baadaye ( sold on credit)", "sold on credit"}:
         return "BAADAYE ( SOLD ON CREDIT)"
     return "Regular Sale"
+
+
+def _normalize_customer_phone(phone):
+    import re
+    compact = re.sub(r"[^0-9+]", "", str(phone or ""))
+    return ("+" if compact.startswith("+") else "") + compact.replace("+", "")
 
 
 def add_sale_payment(sale_id, amount, recorded_by=None):
@@ -144,15 +151,29 @@ def create_sale(shop_id, user_id, items, payment_type="mobile_money", sale_type=
             raise ValueError("Cannot create a sale with no items.")
         if normalized_sale_type == "credit" and (not customer_name or not customer_phone):
             raise ValueError("Customer name and phone number are required for a credit sale.")
+        if van and (not customer_name or not customer_phone):
+            raise ValueError("Customer name and phone number are required for van sales to keep customer records.")
 
         sale_items = []
         sale = None
         
         with db.session.begin_nested():
             total = 0
+            customer = None
+            if van:
+                normalized_phone = _normalize_customer_phone(customer_phone)
+                customer = Customer.query.filter_by(tenant_id=van.tenant_id, normalized_phone=normalized_phone).first()
+                if customer is None:
+                    customer = Customer(tenant_id=van.tenant_id, name=customer_name, phone=customer_phone, normalized_phone=normalized_phone)
+                    db.session.add(customer)
+                    db.session.flush()
+                else:
+                    customer.name = customer_name
+                    customer.phone = customer_phone
             sale = Sale(tenant_id=user.tenant_id if user else None, shop_id=None if van else shop_id, van_id=van.id if van else None,
                         operation_type="van" if van else "shop", user_id=user_id, total_amount=0,
-                        payment_type=payment_type, sale_type=normalized_sale_type, customer_name=customer_name, customer_phone=customer_phone)
+                        payment_type=payment_type, sale_type=normalized_sale_type, customer_name=customer_name, customer_phone=customer_phone,
+                        customer_id=customer.id if customer else None)
             logger.debug(f"Sale instance created with sale.sale_type={normalized_sale_type!r}")
             db.session.add(sale)
             db.session.flush() # Ensure sale.id is available
@@ -311,7 +332,7 @@ def create_sale(shop_id, user_id, items, payment_type="mobile_money", sale_type=
         db.session.rollback()
         raise e
 
-def _serialize_sale(sale, shop=None, attendant=None, items_map=None):
+def _serialize_sale(sale, shop=None, attendant=None, items_map=None, returned_empty_map=None):
     if shop is None:
         shop = Shop.query.get(sale.shop_id) if sale.shop_id else None
     van = None
@@ -322,6 +343,8 @@ def _serialize_sale(sale, shop=None, attendant=None, items_map=None):
         attendant = User.query.get(sale.user_id)
     if items_map is None:
         items_map = {}
+    if returned_empty_map is None:
+        returned_empty_map = {}
     items_summary = []
     for item in sale.items:
         product = items_map.get(item.item_id)
@@ -331,7 +354,8 @@ def _serialize_sale(sale, shop=None, attendant=None, items_map=None):
             "item_name": product_name,
             "qty": item.qty,
             "unit_price": float(item.unit_price) if item.unit_price is not None else 0.0,
-            "unit_cost": float(item.unit_cost) if item.unit_cost is not None else 0.0
+            "unit_cost": float(item.unit_cost) if item.unit_cost is not None else 0.0,
+            "returned_empty_qty": returned_empty_map.get((sale.id, item.item_id), 0),
         })
     return {
         "id": sale.id,
@@ -348,6 +372,7 @@ def _serialize_sale(sale, shop=None, attendant=None, items_map=None):
         "sale_type_label": get_sale_type_label(sale.sale_type),
         "customer_name": sale.customer_name,
         "customer_phone": sale.customer_phone,
+        "customer_id": sale.customer_id,
         "paid_amount": float(sale.paid_amount) if getattr(sale, 'paid_amount', None) is not None else 0.0,
         "status": sale.status if getattr(sale, 'status', None) is not None else 'unpaid',
         "profit_amount": float(sale.profit_amount) if getattr(sale, 'profit_amount', None) is not None else 0.0,
@@ -364,8 +389,12 @@ def _serialize_sales_bulk(sales):
     shops = {s.id: s for s in Shop.query.filter(Shop.id.in_(shop_ids)).all()} if shop_ids else {}
     users = {u.id: u for u in User.query.filter(User.id.in_(user_ids)).all()} if user_ids else {}
     items = {i.id: i for i in Item.query.filter(Item.id.in_(item_ids)).all()} if item_ids else {}
-    
-    return [_serialize_sale(s, shop=shops.get(s.shop_id), attendant=users.get(s.user_id), items_map=items) for s in sales]
+    sale_ids = {s.id for s in sales}
+    return_rows = SaleCylinderReturn.query.filter(SaleCylinderReturn.sale_id.in_(sale_ids)).all() if sale_ids else []
+    returned_empty_map = {(row.sale_id, row.item_id): row.returned_qty for row in return_rows}
+
+    return [_serialize_sale(s, shop=shops.get(s.shop_id), attendant=users.get(s.user_id),
+                            items_map=items, returned_empty_map=returned_empty_map) for s in sales]
 
 def _paginate_sales(query, page, per_page):
     page = max(1, page)
@@ -396,7 +425,9 @@ def get_sales_by_shop(shop_id, page=None, per_page=25):
     return _serialize_sales_bulk(sales)
 
 def get_sales_by_van(van_id, page=None, per_page=25):
-    query = Sale.query.filter_by(van_id=van_id, operation_type="van").filter(or_(Sale.sale_type != 'credit', Sale.status == 'paid')).options(selectinload(Sale.items)).order_by(Sale.created_at.desc(), Sale.id.desc())
+    # Van history must include unpaid credit sales so admins can reconcile
+    # cylinders delivered against amounts still owed by customers.
+    query = Sale.query.filter_by(van_id=van_id, operation_type="van").options(selectinload(Sale.items)).order_by(Sale.created_at.desc(), Sale.id.desc())
     return _paginate_sales(query, page, per_page) if page is not None else _serialize_sales_bulk(query.all())
 
 def get_todays_sales(shop_id=None, van_id=None):

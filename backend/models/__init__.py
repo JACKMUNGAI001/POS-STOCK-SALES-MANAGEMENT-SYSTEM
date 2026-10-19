@@ -2,6 +2,7 @@
 from .tenant import Tenant
 from .user import User
 from .shop import Shop
+from .customer import Customer
 from .van import Van, VanStock, VanEmptyCylinderStock, VanTransfer, VanStockMovement
 from .product import Category, Item
 from .stock import ShopStock, StockBatch, StockMovement, EmptyCylinderStock, SaleCylinderReturn

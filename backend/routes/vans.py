@@ -1,10 +1,15 @@
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import get_jwt_identity, jwt_required
+from math import ceil
+from sqlalchemy import func, case
 from extensions import db
 from models.van import Van, VanStock, VanEmptyCylinderStock, VanTransfer, VanStockMovement
 from models.product import Item, Category
 from utils.timezone_utils import get_local_time
 from models.user import User
+from models.supplier import Supplier
+from models.sale import Sale, SaleItem
+from models.stock import SaleCylinderReturn
 
 bp = Blueprint("vans", __name__)
 
@@ -68,11 +73,16 @@ def load_refill(van_id):
     data = request.get_json() or {}
     try:
         item_id, qty = int(data.get("item_id")), int(data.get("quantity"))
+        supplier_id = int(data.get("supplier_id"))
         cost = float(data.get("unit_cost") or 0)
         empty_qty = int(data.get("empty_quantity", 0) or 0)
         if qty <= 0 or cost < 0: raise ValueError()
         if empty_qty < 0: raise ValueError()
-    except (TypeError, ValueError): return jsonify({"msg": "Valid item, positive quantities, and nonnegative unit cost are required"}), 400
+    except (TypeError, ValueError): return jsonify({"msg": "Choose a supplier and enter valid item, positive quantities, and nonnegative unit cost"}), 400
+    supplier = Supplier.query.filter_by(id=supplier_id).filter(
+        (Supplier.tenant_id == identity.get("tenant_id")) | (Supplier.tenant_id.is_(None))
+    ).first()
+    if not supplier: return jsonify({"msg": "Supplier not found for this business"}), 404
     item = Item.query.get(item_id)
     if not item: return jsonify({"msg": "Product not found"}), 404
     category = Category.query.get(item.category_id)
@@ -93,6 +103,7 @@ def load_refill(van_id):
     row.updated_at = get_local_time()
     db.session.add(VanStockMovement(tenant_id=van.tenant_id, van_id=van.id, item_id=item_id,
                                     movement_type="depot_refill", quantity=qty, unit_cost=cost,
+                                    supplier_id=supplier.id,
                                     reference=f"Empties returned to depot: {empty_qty}", user_id=identity.get("id")))
     db.session.commit()
     return jsonify({"msg": "Refill recorded", "quantity": row.quantity, "empty_quantity": empty.quantity if empty else 0}), 201
@@ -138,15 +149,21 @@ def transfer_van_stock():
 def list_van_transfers():
     identity = get_jwt_identity() or {}
     if identity.get("role") == "manager": return jsonify([])
-    rows = VanTransfer.query.filter_by(tenant_id=identity.get("tenant_id")).order_by(VanTransfer.created_at.desc()).limit(200).all()
     by_id = {v.id: v for v in Van.query.filter_by(tenant_id=identity.get("tenant_id")).all()}
+    query = VanTransfer.query.filter_by(tenant_id=identity.get("tenant_id"))
     if identity.get("role") == "attendant":
         assigned = {v.id for v in by_id.values() if v.attendant_id == identity.get("id")}
-        rows = [r for r in rows if r.from_van_id in assigned or r.to_van_id in assigned]
-    return jsonify([{"id": r.id, "from_van": by_id[r.from_van_id].registration_number,
+        query = query.filter((VanTransfer.from_van_id.in_(assigned)) | (VanTransfer.to_van_id.in_(assigned))) if assigned else query.filter(VanTransfer.id == -1)
+    page = max(1, min(1000000, request.args.get("page", 1, type=int)))
+    per_page = max(1, min(100, request.args.get("per_page", 20, type=int)))
+    total = query.count()
+    rows = query.order_by(VanTransfer.created_at.desc(), VanTransfer.id.desc()).offset((page - 1) * per_page).limit(per_page).all()
+    items = [{"id": r.id, "from_van": by_id[r.from_van_id].registration_number,
                      "to_van": by_id[r.to_van_id].registration_number, "item_id": r.item_id,
                      "item_name": Item.query.get(r.item_id).name, "quantity": r.quantity,
-                     "created_at": r.created_at.isoformat()} for r in rows])
+                     "created_at": r.created_at.isoformat()} for r in rows]
+    return jsonify({"items": items, "total": total, "page": page, "per_page": per_page,
+                    "pages": ceil(total / per_page) if total else 0})
 
 @bp.get("/<int:van_id>/movements")
 @jwt_required()
@@ -155,10 +172,44 @@ def van_movements(van_id):
     van = Van.query.filter_by(id=van_id, tenant_id=identity.get("tenant_id")).first()
     if not van or identity.get("role") == "manager" or (identity.get("role") == "attendant" and van.attendant_id != identity.get("id")):
         return jsonify({"msg": "Van not found"}), 404
-    rows = VanStockMovement.query.filter_by(van_id=van_id).order_by(VanStockMovement.created_at.desc()).limit(200).all()
-    return jsonify([{"id": r.id, "item_name": Item.query.get(r.item_id).name, "movement_type": r.movement_type,
+    page = max(1, min(1000000, request.args.get("page", 1, type=int)))
+    per_page = max(1, min(100, request.args.get("per_page", 20, type=int)))
+    query = VanStockMovement.query.filter_by(van_id=van_id).order_by(VanStockMovement.created_at.desc(), VanStockMovement.id.desc())
+    total = query.count()
+    rows = query.offset((page - 1) * per_page).limit(per_page).all()
+    supplier_ids = {r.supplier_id for r in rows if r.supplier_id}
+    suppliers = {s.id: s for s in Supplier.query.filter(Supplier.id.in_(supplier_ids)).all()} if supplier_ids else {}
+    items = [{"id": r.id, "item_name": Item.query.get(r.item_id).name, "movement_type": r.movement_type,
                      "quantity": r.quantity, "unit_cost": float(r.unit_cost or 0), "reference": r.reference,
-                     "created_at": r.created_at.isoformat()} for r in rows])
+                     "supplier_id": r.supplier_id, "supplier_name": suppliers[r.supplier_id].name if r.supplier_id in suppliers else None,
+                     "empty_quantity": int((r.reference or "").rsplit(":", 1)[-1].strip()) if r.movement_type == "depot_refill" and "Empties returned to depot:" in (r.reference or "") else 0,
+                     "created_at": r.created_at.isoformat()} for r in rows]
+    return jsonify({"items": items, "total": total, "page": page, "per_page": per_page,
+                    "pages": ceil(total / per_page) if total else 0})
+
+@bp.get("/<int:van_id>/reconciliation")
+@jwt_required()
+def van_reconciliation(van_id):
+    identity, error = _admin()
+    if error: return error
+    van = Van.query.filter_by(id=van_id, tenant_id=identity.get("tenant_id")).first()
+    if not van: return jsonify({"msg": "Van not found"}), 404
+    sale_ids = db.session.query(Sale.id).filter_by(van_id=van.id, tenant_id=identity.get("tenant_id"), operation_type="van")
+    sale_count, gross_sales, credit_count, regular_count, outstanding = db.session.query(
+        func.count(Sale.id), func.coalesce(func.sum(Sale.total_amount), 0),
+        func.coalesce(func.sum(case((Sale.sale_type == "credit", 1), else_=0)), 0),
+        func.coalesce(func.sum(case((Sale.sale_type != "credit", 1), else_=0)), 0),
+        func.coalesce(func.sum(case(((Sale.sale_type == "credit") & (Sale.status != "paid"), Sale.total_amount - Sale.paid_amount), else_=0)), 0),
+    ).filter(Sale.id.in_(sale_ids)).one()
+    sold_count = db.session.query(func.coalesce(func.sum(SaleItem.qty), 0)).filter(SaleItem.sale_id.in_(sale_ids)).scalar() or 0
+    customer_empty_count = db.session.query(func.coalesce(func.sum(SaleCylinderReturn.returned_qty), 0)).filter(SaleCylinderReturn.sale_id.in_(sale_ids)).scalar() or 0
+    refill_rows = VanStockMovement.query.filter_by(van_id=van.id, movement_type="depot_refill").all()
+    refilled_count = sum(r.quantity for r in refill_rows)
+    depot_empty_count = sum(int((r.reference or "").rsplit(":", 1)[-1].strip()) for r in refill_rows if "Empties returned to depot:" in (r.reference or ""))
+    return jsonify({"customer_empty_count": int(customer_empty_count), "depot_empty_count": depot_empty_count,
+                    "refilled_count": refilled_count, "sold_count": int(sold_count), "sale_count": sale_count,
+                    "regular_sale_count": int(regular_count), "credit_sale_count": int(credit_count),
+                    "gross_sales": float(gross_sales or 0), "outstanding_credit": float(outstanding or 0)})
 
 @bp.post("/")
 @jwt_required()

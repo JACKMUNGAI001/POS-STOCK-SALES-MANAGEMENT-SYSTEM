@@ -17,6 +17,7 @@ class Sale(db.Model):
     sale_type = db.Column(db.String(50), nullable=False, default="standard", server_default="standard")
     customer_name = db.Column(db.String(255), nullable=True)
     customer_phone = db.Column(db.String(50), nullable=True)
+    customer_id = db.Column(db.Integer, db.ForeignKey("customers.id"), nullable=True, index=True)
     receipt_uuid = db.Column(db.String(64), db.ForeignKey("receipts.uuid"), nullable=True, index=True)
     created_at = db.Column(db.DateTime, default=get_local_time, index=True)
 

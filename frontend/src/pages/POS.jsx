@@ -135,6 +135,10 @@ export default function POS() {
       return;
     }
     if (operation === 'van' && !selectedVan) { alert('No van is selected or assigned.'); return; }
+    if (operation === 'van' && (!customerName.trim() || !customerPhone.trim())) {
+      alert('Enter the van customer’s name and phone so repeat purchases can be kept on their customer record.');
+      return;
+    }
     await runSale(async () => {
       try {
       const response = await api.post("/sales", {
@@ -197,8 +201,8 @@ export default function POS() {
               <div className="mb-5">
                 <label className="block text-sm font-bold text-gray-700 dark:text-gray-400 uppercase tracking-wider mb-2">Buyer name</label>
                 <div className="grid sm:grid-cols-2 gap-3">
-                  <input value={customerName} onChange={e => setCustomerName(e.target.value)} placeholder="Buyer name" className="w-full p-3 border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white" />
-                  {saleType === 'credit' && <input value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} placeholder="Buyer phone (required for credit)" className="w-full p-3 border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white" />}
+                  <input value={customerName} onChange={e => setCustomerName(e.target.value)} placeholder="Buyer name" required={operation === 'van' || saleType === 'credit'} className="w-full p-3 border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white" />
+                  {(operation === 'van' || saleType === 'credit') && <input type="tel" value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} placeholder={operation === 'van' ? 'Buyer phone (used to find repeat customer)' : 'Buyer phone (required for credit)'} required className="w-full p-3 border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white" />}
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-5 md:gap-6">

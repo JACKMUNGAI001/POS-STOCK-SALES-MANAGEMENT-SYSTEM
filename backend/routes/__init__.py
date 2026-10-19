@@ -11,6 +11,7 @@ from .reports import bp as reports_bp
 from .user import bp as user_bp
 from .suppliers import suppliers_bp
 from .vans import bp as vans_bp
+from .customers import bp as customers_bp
 
 def register_blueprints(app):
     app.register_blueprint(auth_bp, url_prefix="/auth")
@@ -26,3 +27,4 @@ def register_blueprints(app):
     app.register_blueprint(user_bp, url_prefix="/user")
     app.register_blueprint(suppliers_bp, url_prefix="/suppliers")
     app.register_blueprint(vans_bp, url_prefix="/vans")
+    app.register_blueprint(customers_bp, url_prefix="/customers")
