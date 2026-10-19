@@ -17,10 +17,6 @@ export default function AllSales() {
   const { user } = useContext(AuthContext);
   const { searchQuery, searchType } = useContext(SearchContext);
 
-  useEffect(() => {
-    fetchSales();
-  }, [fetchSales]);
-
   const fetchSales = useCallback(async () => {
     setLoading(true);
     try {
@@ -46,6 +42,10 @@ export default function AllSales() {
       setLoading(false);
     }
   }, [currentPage, searchQuery]);
+
+  useEffect(() => {
+    fetchSales();
+  }, [fetchSales]);
 
   const handlePay = async (sale) => {
     const remaining = (sale.total_amount || 0) - (sale.paid_amount || 0);
