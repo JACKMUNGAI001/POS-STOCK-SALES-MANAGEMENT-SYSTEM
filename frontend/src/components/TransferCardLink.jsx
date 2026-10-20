@@ -11,8 +11,8 @@ export default function TransferCardLink(){
             <div className="flex items-center gap-3">
               <ArrowLeftRight size={20} className="sm:w-6 sm:h-6 text-blue-600 dark:text-blue-400" />
               <div className="text-left">
-                <h2 className="text-lg sm:text-xl font-bold text-gray-800 dark:text-white tracking-tight">Stock Transfer History</h2>
-                <p className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 font-medium">Record of all inventory relocations</p>
+                <h2 className="text-lg sm:text-xl font-bold text-gray-800 dark:text-white tracking-tight">Van Transfer History</h2>
+                <p className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 font-medium">View stock movements between vans</p>
               </div>
             </div>
             <div className="flex items-center gap-4">

@@ -126,7 +126,8 @@ For Neon PostgreSQL with the existing Render backend and frontend services, see 
 ### Stock
 - `GET /stocks/shop/<id>` - Shop inventory
 - `POST /stocks/restock` - Add stock
-- `POST /transfers` - Transfer between shops
+- `POST /vans/transfers` - Transfer filled gas cylinders between vans (admin or manager)
+- `GET /vans/transfers?page=1&per_page=20` - Paginated van transfer history
 
 ### Reports
 - `GET /reports/product-analysis` - Product performance

@@ -97,7 +97,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
               <Route path="/admin/pnl" element={<ProtectedRoute role="admin"><PageLayout role="admin"><PNLReport/></PageLayout></ProtectedRoute>} />
               <Route path="/admin/analysis" element={<ProtectedRoute role="admin"><PageLayout role="admin" title="Sales Analysis"><SalesAnalysis/></PageLayout></ProtectedRoute>} />
               <Route path="/admin/expenses" element={<ProtectedRoute role={['admin', 'manager']}><PageLayout><Expenses/></PageLayout></ProtectedRoute>} />
-              <Route path="/transfers" element={<ProtectedRoute role={['admin', 'manager']}><PageLayout><Transfers/></PageLayout></ProtectedRoute>} />
+              <Route path="/transfers" element={<ProtectedRoute role={["admin", "manager"]}><PageLayout><Transfers/></PageLayout></ProtectedRoute>} />
               <Route path="/transfers/history" element={<ProtectedRoute role={["attendant","manager","admin"]}><PageLayout><AttendantTransfers/></PageLayout></ProtectedRoute>} />
               <Route path="/attendant/transfers" element={<ProtectedRoute role={["attendant","manager","admin"]}><PageLayout><AttendantTransfers/></PageLayout></ProtectedRoute>} />
 

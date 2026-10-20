@@ -1,244 +1,120 @@
-import { useState, useEffect } from "react";
-import api from "../api/api";
-import { ArrowLeftRight, Store, Box, FileText, Send, Plus, Trash2 } from "lucide-react";
-import SearchableSelect from "../components/SearchableSelect";
-import useSubmissionLock from "../hooks/useSubmissionLock";
+import { useEffect, useState } from 'react'
+import api from '../api/api'
+import { ArrowLeftRight, Truck } from 'lucide-react'
+import SearchableSelect from '../components/SearchableSelect'
+import useSubmissionLock from '../hooks/useSubmissionLock'
+
+const fieldClass = 'w-full rounded-xl border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900'
 
 export default function Transfers() {
-  const [fromShop, setFromShop] = useState("");
-  const [toShop, setToShop] = useState("");
-  const [itemId, setItemId] = useState("");
-  const [quantity, setQuantity] = useState("");
-  const [notes, setNotes] = useState("");
-  const [shops, setShops] = useState([]);
-  const [items, setItems] = useState([]);
-  const [itemsList, setItemsList] = useState([]);
-  const { isSubmitting: isTransferring, run: runTransfer } = useSubmissionLock();
+  const [vans, setVans] = useState([])
+  const [items, setItems] = useState([])
+  const [fromVan, setFromVan] = useState('')
+  const [toVan, setToVan] = useState('')
+  const [itemId, setItemId] = useState('')
+  const [quantity, setQuantity] = useState('')
+  const [transfers, setTransfers] = useState([])
+  const [page, setPage] = useState(1)
+  const [pages, setPages] = useState(0)
+  const [error, setError] = useState('')
+  const { isSubmitting, run } = useSubmissionLock()
+
+  const loadTransfers = async (nextPage = page) => {
+    const { data } = await api.get(`/vans/transfers?page=${nextPage}&per_page=20`)
+    setTransfers(data.items || [])
+    setPage(data.page || nextPage)
+    setPages(data.pages || 0)
+  }
 
   useEffect(() => {
-    const fetchShopsAndItems = async () => {
+    Promise.all([api.get('/vans'), api.get('/items')])
+      .then(([vansResponse, itemsResponse]) => {
+        setVans(vansResponse.data)
+        setItems(itemsResponse.data.filter(item => item.category_name?.toLowerCase().includes('gas')))
+      })
+      .catch(err => setError(err.response?.data?.msg || 'Could not load vans and gas products.'))
+    loadTransfers(1).catch(err => setError(err.response?.data?.msg || 'Could not load van transfer history.'))
+  }, [])
+
+  const submitTransfer = async event => {
+    event.preventDefault()
+    if (fromVan === toVan) {
+      setError('Choose two different vans.')
+      return
+    }
+
+    setError('')
+    await run(async () => {
       try {
-        const [shopsRes, itemsRes] = await Promise.all([
-          api.get("/shops"),
-          api.get("/items")
-        ]);
-        setShops(shopsRes.data);
-        setItems(itemsRes.data);
+        await api.post('/vans/transfers', {
+          from_van_id: fromVan,
+          to_van_id: toVan,
+          item_id: itemId,
+          quantity,
+        })
+        setItemId('')
+        setQuantity('')
+        await loadTransfers(1)
       } catch (err) {
-        console.error("Error fetching shops or items");
+        setError(err.response?.data?.msg || err.message || 'Could not complete van transfer.')
       }
-    };
-    fetchShopsAndItems();
-  }, []);
+    })
+  }
 
-  const handleAddItem = () => {
-    if (!itemId || !quantity || quantity <= 0) {
-      alert("Please select an item and a valid quantity.");
-      return;
-    }
+  return <div className="mx-auto max-w-5xl space-y-6">
+    <header className="flex items-center gap-3">
+      <div className="rounded-2xl bg-indigo-600 p-3 text-white"><ArrowLeftRight size={26} /></div>
+      <div>
+        <h1 className="text-2xl font-black text-gray-900 dark:text-white">Van Transfers</h1>
+        <p className="text-sm text-gray-500 dark:text-gray-400">Move filled gas cylinders between vans.</p>
+      </div>
+    </header>
 
-    const itemToAdd = items.find(i => i.id === parseInt(itemId));
-    if (!itemToAdd) return;
+    <form onSubmit={submitTransfer} className="space-y-5 rounded-2xl bg-white p-5 shadow-sm dark:bg-gray-800 sm:p-7">
+      <h2 className="flex items-center gap-2 text-lg font-bold"><Truck size={20} className="text-indigo-600" /> Create a van transfer</h2>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <label className="space-y-2 text-sm font-semibold">From van
+          <select required value={fromVan} onChange={event => setFromVan(event.target.value)} className={fieldClass}>
+            <option value="">Choose source van</option>{vans.map(van => <option key={van.id} value={van.id}>{van.registration_number}</option>)}
+          </select>
+        </label>
+        <label className="space-y-2 text-sm font-semibold">To van
+          <select required value={toVan} onChange={event => setToVan(event.target.value)} className={fieldClass}>
+            <option value="">Choose destination van</option>{vans.filter(van => String(van.id) !== String(fromVan)).map(van => <option key={van.id} value={van.id}>{van.registration_number}</option>)}
+          </select>
+        </label>
+      </div>
+      <div className="grid items-end gap-4 sm:grid-cols-[1fr_12rem_auto]">
+        <label className="space-y-2 text-sm font-semibold">Gas product
+          <SearchableSelect options={items} value={itemId} onChange={event => setItemId(event.target.value)} placeholder="Choose cylinder product" />
+        </label>
+        <label className="space-y-2 text-sm font-semibold">Quantity
+          <input required type="number" min="1" step="1" value={quantity} onChange={event => setQuantity(event.target.value)} className={fieldClass} />
+        </label>
+        <button disabled={isSubmitting || vans.length < 2 || !items.length} className="rounded-xl bg-indigo-600 px-6 py-3 font-bold text-white hover:bg-indigo-700 disabled:opacity-50">
+          {isSubmitting ? 'Transferring…' : 'Transfer stock'}
+        </button>
+      </div>
+      {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm font-medium text-red-700 dark:bg-red-900/30 dark:text-red-300">{error}</p>}
+      {vans.length < 2 && <p className="text-sm text-amber-700 dark:text-amber-300">Register at least two vans before creating a transfer.</p>}
+    </form>
 
-    const existingIndex = itemsList.findIndex(i => i.item_id === itemToAdd.id);
-    if (existingIndex > -1) {
-      const newList = [...itemsList];
-      newList[existingIndex].qty += parseInt(quantity);
-      setItemsList(newList);
-    } else {
-      setItemsList([...itemsList, {
-        item_id: itemToAdd.id,
-        item_name: itemToAdd.name,
-        qty: parseInt(quantity)
-      }]);
-    }
-
-    setItemId("");
-    setQuantity("");
-  };
-
-  const handleRemoveItem = (index) => {
-    setItemsList(itemsList.filter((_, i) => i !== index));
-  };
-
-  const handleTransfer = async () => {
-    if(!fromShop || !toShop) {
-      alert("Please select source and destination shops.");
-      return;
-    }
-    if(fromShop === toShop) {
-      alert("Source and destination shops cannot be the same.");
-      return;
-    }
-    if(itemsList.length === 0) {
-      alert("Please add at least one item to transfer.");
-      return;
-    }
-
-    await runTransfer(async () => {
-      try {
-      await api.post("/transfers", {
-        from_shop_id: fromShop,
-        to_shop_id: toShop,
-        items: itemsList.map(i => ({ item_id: i.item_id, qty: i.qty })),
-        notes: notes,
-      });
-
-      alert("Transfer completed successfully!");
-      setFromShop(""); 
-      setToShop(""); 
-      setItemsList([]); 
-      setNotes("");
-      } catch (err) {
-        alert(`Error creating transfer: ${err.response?.data?.msg || err.message}`);
-      }
-    });
-  };
-
-  return (
-    <>
-        <div className="mb-8 flex items-center gap-3 transition-colors">
-          <div className="bg-blue-600 p-2 sm:p-3 rounded-2xl text-white shadow-lg shadow-blue-200 dark:shadow-none transition-colors">
-            <ArrowLeftRight size={24} className="sm:w-8 sm:h-8" />
-          </div>
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-black text-gray-900 dark:text-white tracking-tight transition-colors">Inter-Shop Transfers</h1>
-            <p className="text-sm sm:text-base text-gray-500 dark:text-gray-400 font-medium transition-colors">Relocate inventory between branch locations securely</p>
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden max-w-5xl transition-colors">
-          <div className="bg-gray-50 dark:bg-gray-900/50 px-5 sm:px-8 py-4 sm:py-6 border-b border-gray-100 dark:border-gray-700 flex items-center gap-3 transition-colors">
-            <Send size={24} className="text-blue-600 dark:text-blue-400" />
-            <h2 className="text-lg sm:text-xl font-bold text-gray-800 dark:text-white tracking-tight transition-colors">Create New Transfer</h2>
-          </div>
-          
-          <div className="p-5 sm:p-8 space-y-8">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-8">
-              {/* FROM */}
-              <div className="space-y-2">
-                <label className="flex items-center gap-2 text-xs font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest px-1 transition-colors">
-                  <Store size={14} className="text-red-400" />
-                  Originating Shop
-                </label>
-                <SearchableSelect
-                  options={shops}
-                  value={fromShop}
-                  onChange={(e) => setFromShop(e.target.value)}
-                  placeholder="Select Source..."
-                />
-              </div>
-
-              {/* TO */}
-              <div className="space-y-2">
-                <label className="flex items-center gap-2 text-xs font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest px-1 transition-colors">
-                  <Store size={14} className="text-green-400" />
-                  Destination Shop
-                </label>
-                <SearchableSelect
-                  options={shops}
-                  value={toShop}
-                  onChange={(e) => setToShop(e.target.value)}
-                  placeholder="Select Destination..."
-                />
-              </div>
-            </div>
-
-            {/* ITEM SELECTION */}
-            <div className="bg-gray-50 dark:bg-gray-900/30 p-4 sm:p-6 rounded-2xl border border-gray-100 dark:border-gray-700 space-y-4">
-              <h3 className="text-sm font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest px-1">Add Products to Transfer</h3>
-              <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
-                <div className="md:col-span-7 space-y-2">
-                  <label className="flex items-center gap-2 text-xs font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest px-1 transition-colors">
-                    <Box size={14} className="text-blue-400" />
-                    Product to Move
-                  </label>
-                  <SearchableSelect
-                    options={items}
-                    value={itemId}
-                    onChange={(e) => setItemId(e.target.value)}
-                    placeholder="Choose Item..."
-                  />
-                </div>
-
-                <div className="md:col-span-3 space-y-2">
-                  <label className="flex items-center gap-2 text-xs font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest px-1 transition-colors">
-                    Quantity
-                  </label>
-                  <input
-                    className="w-full p-3 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-900 focus:ring-2 focus:ring-blue-500 outline-none font-bold text-gray-800 dark:text-white transition-all"
-                    type="number"
-                    value={quantity}
-                    min="1"
-                    onChange={(e) => setQuantity(e.target.value)}
-                  />
-                </div>
-
-                <div className="md:col-span-2">
-                  <button
-                    onClick={handleAddItem}
-                    className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold hover:bg-blue-700 transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-100 dark:shadow-none"
-                  >
-                    <Plus size={20} /> Add
-                  </button>
-                </div>
-              </div>
-
-              {/* ITEMS LIST TABLE */}
-              {itemsList.length > 0 && (
-                <div className="mt-6 border border-gray-100 dark:border-gray-700 rounded-xl overflow-hidden bg-white dark:bg-gray-800">
-                  <table className="w-full text-left">
-                    <thead className="bg-gray-50 dark:bg-gray-900/50">
-                      <tr>
-                        <th className="px-4 py-3 text-[10px] font-black text-gray-400 uppercase tracking-widest">Product</th>
-                        <th className="px-4 py-3 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Qty</th>
-                        <th className="px-4 py-3 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Action</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                      {itemsList.map((item, index) => (
-                        <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-900/30 transition-colors">
-                          <td className="px-4 py-3 text-sm font-bold text-gray-700 dark:text-gray-300">{item.item_name}</td>
-                          <td className="px-4 py-3 text-sm font-black text-blue-600 dark:text-blue-400 text-center">{item.qty}</td>
-                          <td className="px-4 py-3 text-center">
-                            <button
-                              onClick={() => handleRemoveItem(index)}
-                              className="text-red-400 hover:text-red-600 transition-colors p-1"
-                            >
-                              <Trash2 size={18} />
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-
-            {/* NOTES */}
-            <div className="space-y-2">
-              <label className="flex items-center gap-2 text-xs font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest px-1 transition-colors">
-                <FileText size={14} />
-                Transfer Notes / Reason
-              </label>
-              <textarea
-                className="w-full p-3 sm:p-4 border border-gray-200 dark:border-gray-700 rounded-2xl bg-gray-50 dark:bg-gray-900 focus:ring-2 focus:ring-blue-500 outline-none font-medium text-gray-700 dark:text-gray-300 h-24 transition-all"
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Briefly explain why this stock is being moved..."
-              ></textarea>
-            </div>
-
-            <button
-              onClick={handleTransfer}
-              disabled={itemsList.length === 0 || isTransferring}
-              className="w-full bg-blue-600 text-white py-4 sm:py-5 rounded-2xl font-black text-base sm:text-lg shadow-xl shadow-blue-100 dark:shadow-none hover:bg-blue-700 hover:-translate-y-0.5 transition-all flex items-center justify-center gap-3 mt-4 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
-            >
-              <ArrowLeftRight size={20} className="sm:w-6 sm:h-6" /> {isTransferring ? "Transferring..." : "Execute Transfer"}
-            </button>
-          </div>
-        </div>
-    </>
-  );
+    <section className="rounded-2xl bg-white p-5 shadow-sm dark:bg-gray-800 sm:p-7">
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="text-lg font-bold">Van transfer history</h2>
+        <span className="text-sm text-gray-500">Page {page} of {Math.max(1, pages)}</span>
+      </div>
+      {transfers.length ? <div className="divide-y divide-gray-100 dark:divide-gray-700">
+        {transfers.map(transfer => <div key={transfer.id} className="flex flex-wrap items-center justify-between gap-2 py-3 text-sm">
+          <span className="font-semibold">{transfer.quantity} × {transfer.item_name}</span>
+          <span>{transfer.from_van} <span className="text-indigo-600">→</span> {transfer.to_van}</span>
+          <time className="text-gray-500">{new Date(transfer.created_at).toLocaleString()}</time>
+        </div>)}
+      </div> : <p className="py-6 text-center text-sm text-gray-500">No van transfers recorded.</p>}
+      <div className="mt-3 flex justify-end gap-2">
+        <button disabled={page <= 1} onClick={() => loadTransfers(page - 1)} className="rounded-lg border px-3 py-2 text-sm disabled:opacity-40">Previous</button>
+        <button disabled={!pages || page >= pages} onClick={() => loadTransfers(page + 1)} className="rounded-lg border px-3 py-2 text-sm disabled:opacity-40">Next</button>
+      </div>
+    </section>
+  </div>
 }

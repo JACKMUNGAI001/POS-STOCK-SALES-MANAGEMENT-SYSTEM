@@ -27,7 +27,7 @@ export default function AdminVans() {
     const empties = await Promise.all(v.data.map(async van => [van.id, (await api.get(`/vans/${van.id}/empty-cylinders`)).data]))
     setVanStocks(Object.fromEntries(stocks)); setVanEmpties(Object.fromEntries(empties))
   }
-  useEffect(() => { refresh().catch(() => {}); api.get('/items').then(r => setItems(r.data)).catch(() => {}) }, [])
+  useEffect(() => { refresh().catch(() => {}); api.get('/items').then(r => setItems(r.data.filter(item => item.category_name?.toLowerCase().includes('gas')))).catch(() => {}) }, [])
   const addVan = async (e) => {
     e.preventDefault()
     try { await api.post('/vans', { registration_number: registration }); setRegistration(''); await refresh() }

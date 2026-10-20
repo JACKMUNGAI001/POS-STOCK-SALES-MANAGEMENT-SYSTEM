@@ -28,7 +28,6 @@ def _view(van):
 @jwt_required()
 def list_vans():
     identity = get_jwt_identity() or {}
-    if identity.get("role") == "manager": return jsonify([])
     query = Van.query.filter_by(tenant_id=identity.get("tenant_id"))
     if identity.get("role") == "attendant":
         query = query.filter_by(attendant_id=identity.get("id"))
@@ -111,8 +110,9 @@ def load_refill(van_id):
 @bp.post("/transfers")
 @jwt_required()
 def transfer_van_stock():
-    identity, error = _admin()
-    if error: return error
+    identity = get_jwt_identity() or {}
+    if identity.get("role") not in ("admin", "manager"):
+        return jsonify({"msg": "Admin or manager access required"}), 403
     data = request.get_json() or {}
     try:
         source_id, target_id = int(data.get("from_van_id")), int(data.get("to_van_id"))
@@ -122,8 +122,8 @@ def transfer_van_stock():
     source = Van.query.filter_by(id=source_id, tenant_id=identity.get("tenant_id")).first()
     target = Van.query.filter_by(id=target_id, tenant_id=identity.get("tenant_id")).first()
     if not source or not target: return jsonify({"msg": "Van not found"}), 404
-    product = Item.query.get(item_id)
-    category = Category.query.get(product.category_id) if product else None
+    product = Item.query.filter_by(id=item_id, tenant_id=identity.get("tenant_id")).first()
+    category = Category.query.filter_by(id=product.category_id, tenant_id=identity.get("tenant_id")).first() if product else None
     if not category or "gas" not in category.name.lower(): return jsonify({"msg": "Only gas cylinder products can be transferred"}), 400
     stock = VanStock.query.filter_by(van_id=source_id, item_id=item_id).with_for_update().first()
     if not stock or stock.quantity < qty: return jsonify({"msg": "Insufficient filled cylinders on source van"}), 400
@@ -148,7 +148,6 @@ def transfer_van_stock():
 @jwt_required()
 def list_van_transfers():
     identity = get_jwt_identity() or {}
-    if identity.get("role") == "manager": return jsonify([])
     by_id = {v.id: v for v in Van.query.filter_by(tenant_id=identity.get("tenant_id")).all()}
     query = VanTransfer.query.filter_by(tenant_id=identity.get("tenant_id"))
     if identity.get("role") == "attendant":

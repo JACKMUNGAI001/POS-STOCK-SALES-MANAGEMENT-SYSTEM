@@ -68,7 +68,7 @@ export default function Sidebar({ role: propRole, onClose }){
             <NavLink to="/admin/analysis" icon={BarChart3}>Sales Analysis</NavLink>
             <NavLink to="/admin/pnl" icon={TrendingUp}>Profit & Loss</NavLink>
             <NavLink to="/admin/expenses" icon={Receipt}>Expenses</NavLink>
-            <NavLink to="/transfers" icon={ArrowLeftRight}>Transfers</NavLink>
+            <NavLink to="/transfers" icon={ArrowLeftRight}>Van Transfers</NavLink>
           </>
         ) : role === 'manager' ? (
           <>
@@ -81,7 +81,7 @@ export default function Sidebar({ role: propRole, onClose }){
             <NavLink to="/empty-cylinders" icon={Cylinder}>Empty Cylinders</NavLink>
             <NavLink to="/empty-cylinders/outstanding" icon={Cylinder}>Cylinders Not Returned</NavLink>
             <NavLink to="/admin/restock-history" icon={Truck}>Restock History</NavLink>
-            <NavLink to="/transfers" icon={ArrowLeftRight}>Transfers</NavLink>
+            <NavLink to="/transfers" icon={ArrowLeftRight}>Van Transfers</NavLink>
             <NavLink to="/admin/expenses" icon={Receipt}>Expenses</NavLink>
           </>
         ) : (
