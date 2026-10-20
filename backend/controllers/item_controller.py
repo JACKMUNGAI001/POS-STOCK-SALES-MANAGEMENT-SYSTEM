@@ -3,10 +3,24 @@ from services.product_service import create_item, list_items
 from models.product import Category, Item
 from extensions import db
 from flask_jwt_extended import get_jwt_identity
+from cachetools import TTLCache
+from threading import RLock
+
+
+# Product rows and category labels are shared per tenant within this worker.
+# The cache is bounded so a long-lived server cannot accumulate tenants forever.
+_item_response_cache = TTLCache(maxsize=256, ttl=10 * 60)
+_item_response_cache_lock = RLock()
 
 def list_items_controller():
     user_identity = get_jwt_identity() or {}
     tenant_id = user_identity.get("tenant_id")
+    cache_key = tenant_id
+    with _item_response_cache_lock:
+        cached_items = _item_response_cache.get(cache_key)
+    if cached_items is not None:
+        return jsonify(cached_items), 200
+
     items = list_items()
     if tenant_id is not None:
         items = [it for it in items if getattr(it, "tenant_id", None) == tenant_id]
@@ -29,7 +43,14 @@ def list_items_controller():
         }
             
         out.append(item_data)
+    with _item_response_cache_lock:
+        _item_response_cache[cache_key] = out
     return jsonify(out), 200
+
+
+def clear_item_response_cache():
+    with _item_response_cache_lock:
+        _item_response_cache.clear()
 
 def create_item_controller():
     data = request.get_json() or {}
@@ -42,6 +63,7 @@ def create_item_controller():
     if tenant_id is None:
         return jsonify({"msg":"tenant_id required"}), 400
     it = create_item(name, category_id, sku=data.get("sku"), brand=data.get("brand"), description=data.get("description"), tenant_id=tenant_id)
+    clear_item_response_cache()
     return jsonify({"id":it.id,"name":it.name}), 201
 
 def list_categories_controller():
@@ -98,6 +120,7 @@ def update_item_controller(item_id):
     item.brand = data.get("brand", item.brand)
     item.description = data.get("description", item.description)
     db.session.commit()
+    clear_item_response_cache()
     return jsonify({"msg": "Item updated", "id": item.id}), 200
 
 def delete_item_controller(item_id):
@@ -140,5 +163,7 @@ def delete_item_controller(item_id):
         db.session.rollback()
         print(f"Error deleting item {item_id}: {str(e)}")
         return jsonify({"msg": "Error deleting item due to database constraints", "error": str(e)}), 500
+
+    clear_item_response_cache()
 
     return jsonify({"msg": "Item and all associated records deleted successfully"}), 200

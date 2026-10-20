@@ -1,4 +1,5 @@
 from flask import Flask, jsonify, request
+from datetime import datetime, timezone
 from config import Config
 from extensions import db, migrate, jwt, cors
 
@@ -26,7 +27,7 @@ def create_app():
     # Health check endpoint
     @app.route("/health")
     def health():
-        return jsonify({"status": "ok"}), 200
+        return jsonify({"status": "ok", "timestamp": datetime.now(timezone.utc).isoformat()}), 200
 
     # Home route to stop 404s
     @app.route("/")
