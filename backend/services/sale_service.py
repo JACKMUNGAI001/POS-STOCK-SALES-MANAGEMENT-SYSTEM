@@ -390,8 +390,10 @@ def _paginate_sales(query, page, per_page):
     }
 
 
-def get_all_sales(page=None, per_page=25):
-    query = Sale.query.filter_by(operation_type="shop").filter(or_(Sale.sale_type != 'credit', Sale.status == 'paid')).options(selectinload(Sale.items)).order_by(Sale.created_at.desc(), Sale.id.desc())
+def get_all_sales(page=None, per_page=25, operation_type=None):
+    query = Sale.query.filter(or_(Sale.sale_type != 'credit', Sale.status == 'paid')).options(selectinload(Sale.items)).order_by(Sale.created_at.desc(), Sale.id.desc())
+    if operation_type in ("shop", "van"):
+        query = query.filter(Sale.operation_type == operation_type)
     if page is not None:
         return _paginate_sales(query, page, per_page)
     sales = query.all()

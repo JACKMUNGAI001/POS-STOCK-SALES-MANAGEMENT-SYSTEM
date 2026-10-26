@@ -216,9 +216,15 @@ export default function AdminDashboard(){
         </div>
 
         {/* OVERVIEW SECTION */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 mb-10">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 md:gap-6 mb-10">
           <Card title="Total Sales" interactive={true} onClick={() => navigate('/admin/all-sales')}>
             {financialOverview ? formatCurrency(financialOverview.total_sales) : '...'}
+          </Card>
+          <Card title="Shop Sales" interactive={true} onClick={() => navigate('/admin/all-sales')}>
+            {financialOverview ? formatCurrency(financialOverview.shop_sales) : '...'}
+          </Card>
+          <Card title="Van Sales" interactive={true} onClick={() => navigate('/admin/all-sales')}>
+            {financialOverview ? formatCurrency(financialOverview.van_sales) : '...'}
           </Card>
           <Card title="Gross Profit" className="border-l-4 border-l-green-500">
             {financialOverview ? formatCurrency(financialOverview.gross_profit) : '...'}

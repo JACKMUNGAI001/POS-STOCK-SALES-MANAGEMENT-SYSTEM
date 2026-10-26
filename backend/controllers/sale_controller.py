@@ -51,6 +51,7 @@ def get_all_sales_controller():
     van_id = get_van_id_for_attendant() if identity.get("role") == "attendant" else None
     page = request.args.get("page", type=int)
     per_page = request.args.get("per_page", default=25, type=int)
+    operation_type = request.args.get("operation_type")
     if van_id:
         return jsonify(get_sales_by_van(van_id, page, per_page)), 200
     shop_id = get_shop_id_for_attendant()
@@ -62,7 +63,7 @@ def get_all_sales_controller():
         manager_shop_id = get_shop_id_for_manager()
         sales = get_sales_by_shop(manager_shop_id, page, per_page) if manager_shop_id else []
     else:
-        sales = get_all_sales(page, per_page)
+        sales = get_all_sales(page, per_page, operation_type)
     return jsonify(sales), 200
 
 def get_shop_sales_controller(shop_id):

@@ -14,15 +14,16 @@ export default function AllSales() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalSales, setTotalSales] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
+  const [operationType, setOperationType] = useState('all');
   const { user } = useContext(AuthContext);
   const { searchQuery, searchType } = useContext(SearchContext);
 
   const fetchSales = useCallback(async () => {
     setLoading(true);
     try {
-      const response = searchQuery
-        ? await api.get("/sales/all")
-        : await api.get("/sales/all", { params: { page: currentPage, per_page: 25 } });
+      const params = { operation_type: operationType };
+      if (!searchQuery) { params.page = currentPage; params.per_page = 25; }
+      const response = await api.get("/sales/all", { params });
       if (Array.isArray(response.data)) {
         setSales(response.data);
         setTotalSales(response.data.length);
@@ -41,7 +42,7 @@ export default function AllSales() {
     } finally {
       setLoading(false);
     }
-  }, [currentPage, searchQuery]);
+  }, [currentPage, searchQuery, operationType]);
 
   useEffect(() => {
     fetchSales();
@@ -111,6 +112,11 @@ export default function AllSales() {
               <ShoppingBag size={20} className="text-blue-600 dark:text-blue-400" />
               Transaction History {searchQuery && <span className="text-xs font-medium text-blue-500 bg-blue-50 dark:bg-blue-900/30 px-2 py-0.5 rounded-full ml-2 transition-all">Searching: "{searchQuery}"</span>}
             </h2>
+            {user?.role === 'admin' && <select value={operationType} onChange={event => { setCurrentPage(1); setOperationType(event.target.value) }} aria-label="Filter sales by channel" className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-semibold dark:border-gray-700 dark:bg-gray-800 dark:text-white">
+              <option value="all">All sales</option>
+              <option value="shop">Shop sales</option>
+              <option value="van">Van sales</option>
+            </select>}
             <span className="bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-400 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest transition-all">
               {searchQuery ? filteredSales.length : totalSales} {searchQuery ? 'Matching' : 'Total'} Records
             </span>
@@ -154,7 +160,7 @@ export default function AllSales() {
                 <thead className="bg-gray-50/90 dark:bg-gray-900/90 transition-colors sticky top-0 z-10 backdrop-blur-sm">
                   <tr>
                     <th className="px-8 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest border-b border-gray-100 dark:border-gray-700">Date & Time</th>
-                    <th className="px-8 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest border-b border-gray-100 dark:border-gray-700">Shop / Attendant</th>
+                    <th className="px-8 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest border-b border-gray-100 dark:border-gray-700">Channel / Location</th>
                     <th className="px-8 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest border-b border-gray-100 dark:border-gray-700">Items Sold</th>
                     <th className="px-8 py-4 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest border-b border-gray-100 dark:border-gray-700">Amount</th>
                     <th className="px-8 py-4 text-center text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest border-b border-gray-100 dark:border-gray-700">Actions</th>
@@ -169,7 +175,7 @@ export default function AllSales() {
                       </td>
                       <td className="px-8 py-4">
                         <div className="flex items-center gap-1 font-black text-xs text-blue-600 dark:text-blue-400 uppercase tracking-tight mb-1">
-                          <Store size={14} /> {sale.shop_name}
+                          <Store size={14} /> {sale.operation_type === 'van' ? `Van ${sale.van_registration || sale.shop_name?.replace(/^Van /, '')}` : sale.shop_name}
                         </div>
                         <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400 text-sm">
                           <User size={14} /> {sale.attendant_name}

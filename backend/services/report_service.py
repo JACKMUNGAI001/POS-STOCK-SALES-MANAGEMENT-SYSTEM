@@ -14,16 +14,16 @@ from utils.timezone_utils import get_local_time
 def get_global_financial_overview():
     try:
         # Exclude unpaid credit (BAADAYE) sales from totals until paid
-        total_sales = db.session.query(func.sum(Sale.total_amount)).filter(
-            Sale.operation_type == 'shop',
-            or_(Sale.sale_type != 'credit', Sale.status == 'paid')
-        ).scalar() or 0
+        paid_sales_filter = or_(Sale.sale_type != 'credit', Sale.status == 'paid')
+        shop_sales = db.session.query(func.sum(Sale.total_amount)).filter(Sale.operation_type == 'shop', paid_sales_filter).scalar() or 0
+        van_sales = db.session.query(func.sum(Sale.total_amount)).filter(Sale.operation_type == 'van', paid_sales_filter).scalar() or 0
+        total_sales = shop_sales + van_sales
         total_expenses = db.session.query(func.sum(Expense.amount)).scalar() or 0
         
         # Optimized: Use SQL aggregation for gross profit
         gross_profit = db.session.query(
             func.sum((SaleItem.unit_price - SaleItem.unit_cost) * SaleItem.qty)
-        ).join(Sale).filter(Sale.operation_type == 'shop', or_(Sale.sale_type != 'credit', Sale.status == 'paid')).scalar() or 0
+        ).join(Sale).filter(paid_sales_filter).scalar() or 0
 
         # Optimized: Use SQL aggregation for combined stock value
         combined_stock_value = db.session.query(
@@ -32,6 +32,8 @@ def get_global_financial_overview():
 
         return {
             "total_sales": float(total_sales),
+            "shop_sales": float(shop_sales),
+            "van_sales": float(van_sales),
             "gross_profit": float(gross_profit),
             "total_expenses": float(total_expenses),
             "combined_stock_value": float(combined_stock_value),
@@ -151,35 +153,28 @@ def get_sales_summary(shop_id=None):
     now = get_local_time()
     today_start = datetime.combine(now.date(), datetime.min.time())
     
-    # Base queries
-    # Exclude unpaid credit sales from summary totals
-    today_query = db.session.query(func.sum(Sale.total_amount)).filter(Sale.operation_type == 'shop', Sale.created_at >= today_start)
-    today_query = today_query.filter(or_(Sale.sale_type != 'credit', Sale.status == 'paid'))
-    
-    start_of_week = today_start - timedelta(days=now.weekday())
-    week_query = db.session.query(func.sum(Sale.total_amount)).filter(Sale.operation_type == 'shop', Sale.created_at >= start_of_week)
-    week_query = week_query.filter(or_(Sale.sale_type != 'credit', Sale.status == 'paid'))
-    
-    start_of_month = datetime(now.year, now.month, 1)
-    month_query = db.session.query(func.sum(Sale.total_amount)).filter(Sale.operation_type == 'shop', Sale.created_at >= start_of_month)
-    month_query = month_query.filter(or_(Sale.sale_type != 'credit', Sale.status == 'paid'))
-    
-    start_of_year = datetime(now.year, 1, 1)
-    year_query = db.session.query(func.sum(Sale.total_amount)).filter(Sale.operation_type == 'shop', Sale.created_at >= start_of_year)
-    year_query = year_query.filter(or_(Sale.sale_type != 'credit', Sale.status == 'paid'))
-
-    if shop_id:
-        today_query = today_query.filter(Sale.shop_id == shop_id)
-        week_query = week_query.filter(Sale.shop_id == shop_id)
-        month_query = month_query.filter(Sale.shop_id == shop_id)
-        year_query = year_query.filter(Sale.shop_id == shop_id)
-
-    return {
-        "today": float(today_query.scalar() or 0),
-        "week": float(week_query.scalar() or 0),
-        "month": float(month_query.scalar() or 0),
-        "year": float(year_query.scalar() or 0)
+    starts = {
+        "today": today_start,
+        "week": today_start - timedelta(days=now.weekday()),
+        "month": datetime(now.year, now.month, 1),
+        "year": datetime(now.year, 1, 1),
     }
+    result = {}
+    for period, start in starts.items():
+        channels = {}
+        for operation_type in ("shop", "van"):
+            query = db.session.query(func.sum(Sale.total_amount)).filter(
+                Sale.operation_type == operation_type,
+                Sale.created_at >= start,
+                or_(Sale.sale_type != 'credit', Sale.status == 'paid'),
+            )
+            if shop_id:
+                query = query.filter(Sale.shop_id == shop_id)
+            channels[operation_type] = float(query.scalar() or 0)
+        result[period] = channels["shop"] + channels["van"]
+        result[f"{period}_shop"] = channels["shop"]
+        result[f"{period}_van"] = channels["van"]
+    return result
 
 def get_stock_summary_by_category(shop_id=None):
     from models.product import Item, Category
