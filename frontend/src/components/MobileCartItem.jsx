@@ -4,20 +4,6 @@ import { Trash2 } from 'lucide-react';
 export default function MobileCartItem({ item, index, cartItems, setCartItems, onRemove, operation = 'shop' }) {
   const isGas = item.tracksEmptyCylinder;
 
-  const handleEmptyQtyChange = (e) => {
-    const val = e.target.value;
-    setCartItems(cartItems.map((cartItem, i) => i === index ? { ...cartItem, empty_qty: val } : cartItem));
-  };
-
-  const toggleNoEmptyReturned = () => {
-    const nextNoEmpty = !item.noEmptyReturned;
-    setCartItems(cartItems.map((cartItem, i) => i === index ? {
-      ...cartItem,
-      noEmptyReturned: nextNoEmpty,
-      empty_qty: nextNoEmpty ? 0 : cartItem.qty,
-    } : cartItem));
-  };
-
   return (
     <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
       <div className="flex items-start justify-between gap-3">
@@ -36,29 +22,11 @@ export default function MobileCartItem({ item, index, cartItems, setCartItems, o
       </div>
 
       {isGas && (
-        <div className="mt-3 space-y-2">
-          <label className="flex items-center gap-2 text-xs font-bold text-gray-600 dark:text-gray-300 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={item.noEmptyReturned || false}
-              onChange={toggleNoEmptyReturned}
-              className="rounded border-gray-300"
-            />
-            {operation === 'van' ? 'No empty collected' : 'No empty returned'}
-          </label>
-          <div>
-            <label className="block text-[10px] font-black text-gray-400 uppercase mb-1 tracking-widest">{operation === 'van' ? 'Empty Collected' : 'Empty Returned'}</label>
-            <input
-              type="number"
-              min="0"
-              max={item.qty}
-              value={item.empty_qty || ''}
-              onChange={handleEmptyQtyChange}
-              disabled={item.noEmptyReturned}
-              className="w-full rounded border p-2 text-center text-sm font-bold disabled:opacity-50 disabled:cursor-not-allowed"
-            />
-          </div>
-        </div>
+        <p className="mt-3 text-xs font-medium text-gray-500 dark:text-gray-400">
+          {operation === 'van'
+            ? 'Record empty cylinders collected in Van Inventory before depot refilling.'
+            : `${item.qty} empty cylinder${item.qty === 1 ? '' : 's'} exchanged at the shop.`}
+        </p>
       )}
 
       <div className="mt-3 flex justify-end">

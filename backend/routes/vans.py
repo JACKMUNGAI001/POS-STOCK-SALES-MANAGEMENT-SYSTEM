@@ -10,6 +10,8 @@ from models.user import User
 from models.supplier import Supplier
 from models.sale import Sale, SaleItem
 from models.stock import SaleCylinderReturn
+from models.customer import Customer
+from services.sale_service import _normalize_customer_phone
 
 bp = Blueprint("vans", __name__)
 
@@ -61,6 +63,52 @@ def van_empty_cylinders(van_id):
         return jsonify({"msg": "Van not found"}), 404
     rows = VanEmptyCylinderStock.query.filter_by(van_id=van_id).all()
     return jsonify([{"item_id": r.item_id, "item_name": Item.query.get(r.item_id).name, "quantity": r.quantity} for r in rows])
+
+@bp.post("/<int:van_id>/empty-cylinders/collect")
+@jwt_required()
+def collect_van_empty_cylinders(van_id):
+    identity = get_jwt_identity() or {}
+    if identity.get("role") not in ("admin", "attendant"):
+        return jsonify({"msg": "Only an administrator or assigned van attendant can record collections"}), 403
+    van = Van.query.filter_by(id=van_id, tenant_id=identity.get("tenant_id")).first()
+    if not van or (identity.get("role") == "attendant" and van.attendant_id != identity.get("id")):
+        return jsonify({"msg": "Van not found"}), 404
+    data = request.get_json() or {}
+    name = str(data.get("customer_name") or "").strip()
+    phone = str(data.get("customer_phone") or "").strip()
+    try:
+        item_id = int(data.get("item_id"))
+        quantity = int(data.get("quantity"))
+    except (TypeError, ValueError):
+        return jsonify({"msg": "Choose a cylinder product and enter a positive whole quantity"}), 400
+    if not name or not phone or quantity <= 0:
+        return jsonify({"msg": "Customer name, phone, and a positive whole quantity are required"}), 400
+    item = Item.query.get(item_id)
+    category = Category.query.get(item.category_id) if item else None
+    if not category or "gas" not in category.name.lower():
+        return jsonify({"msg": "Only gas cylinder products can be collected"}), 400
+    normalized_phone = _normalize_customer_phone(phone)
+    if not normalized_phone:
+        return jsonify({"msg": "Enter a valid customer phone number"}), 400
+    customer = Customer.query.filter_by(tenant_id=van.tenant_id, normalized_phone=normalized_phone).first()
+    if customer:
+        customer.name, customer.phone = name, phone
+    else:
+        customer = Customer(tenant_id=van.tenant_id, name=name, phone=phone, normalized_phone=normalized_phone)
+        db.session.add(customer)
+        db.session.flush()
+    empty = VanEmptyCylinderStock.query.filter_by(van_id=van.id, item_id=item_id).with_for_update().first()
+    if not empty:
+        empty = VanEmptyCylinderStock(tenant_id=van.tenant_id, van_id=van.id, item_id=item_id, quantity=0)
+        db.session.add(empty)
+    empty.quantity += quantity
+    db.session.add(VanStockMovement(
+        tenant_id=van.tenant_id, van_id=van.id, item_id=item_id,
+        movement_type="customer_empty_collection", quantity=quantity, unit_cost=0,
+        reference=f"Customer: {customer.name} ({customer.phone})", user_id=identity.get("id"),
+    ))
+    db.session.commit()
+    return jsonify({"msg": "Customer empties recorded", "quantity": empty.quantity}), 201
 
 @bp.post("/<int:van_id>/refills")
 @jwt_required()

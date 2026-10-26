@@ -271,35 +271,16 @@ def create_sale(shop_id, user_id, items, payment_type="mobile_money", sale_type=
             for it in items:
                 item_id = int(it.get("item_id"))
                 sold_quantities[item_id] = sold_quantities.get(item_id, 0) + int(it.get("qty", 0))
-            returned_quantities = {}
-            for empty in (empty_cylinders or []):
-                item_id, returned = int(empty.get("item_id")), int(empty.get("qty", 0))
-                if returned < 0:
-                    raise ValueError("Returned empty cylinders must be between zero and the quantity sold")
-                returned_quantities[item_id] = returned_quantities.get(item_id, 0) + returned
-
-            for item_id, returned in returned_quantities.items():
-                if returned > sold_quantities.get(item_id, 0):
-                    raise ValueError("Returned empty cylinders must be between zero and the quantity sold")
-
             for item_id, sold_qty in sold_quantities.items():
                 item = Item.query.get(item_id)
                 category = Category.query.get(item.category_id) if item else None
                 if not category or "gas" not in category.name.lower():
-                    if returned_quantities.get(item_id, 0):
-                        raise ValueError("Empty cylinders can only be recorded for gas products")
                     continue
-                returned = returned_quantities.get(item_id, 0)
+                # Shops exchange an empty for each filled cylinder sold. Van
+                # empties are collected separately before depot refills.
+                returned = 0 if van else sold_qty
                 db.session.add(SaleCylinderReturn(sale_id=sale.id, item_id=item_id, sold_qty=sold_qty, returned_qty=returned))
-                if not returned:
-                    continue
                 if van:
-                    empty_stock = VanEmptyCylinderStock.query.filter_by(van_id=van_id, item_id=item_id).first()
-                    if not empty_stock:
-                        empty_stock = VanEmptyCylinderStock(tenant_id=van.tenant_id, van_id=van_id,
-                                                            item_id=item_id, quantity=0)
-                        db.session.add(empty_stock)
-                    empty_stock.quantity += returned
                     continue
                 empty_stock = EmptyCylinderStock.query.filter_by(shop_id=shop_id, item_id=item_id).first()
                 if not empty_stock:
