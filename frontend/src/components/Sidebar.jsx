@@ -59,6 +59,7 @@ export default function Sidebar({ role: propRole, onClose }){
             <NavLink to="/admin/credit-sales" icon={CreditCard}>Credit Sales</NavLink>
             <NavLink to="/admin/shops" icon={Store}>Shops</NavLink>
             <NavLink to="/admin/vans" icon={Truck}>Vans & Attendants</NavLink>
+            <NavLink to="/van/inventory" icon={Truck}>Van Inventory & Collections</NavLink>
             <NavLink to="/admin/customers" icon={UsersRound}>Van Customers</NavLink>
             <NavLink to="/admin/items" icon={Package}>Products</NavLink>
             <NavLink to="/empty-cylinders" icon={Cylinder}>Empty Cylinders</NavLink>

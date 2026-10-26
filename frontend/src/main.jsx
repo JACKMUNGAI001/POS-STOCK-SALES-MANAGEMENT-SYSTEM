@@ -81,7 +81,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
               <Route path="/admin/shops" element={<ProtectedRoute role={['admin', 'manager']}><PageLayout><AdminShops/></PageLayout></ProtectedRoute>} />
               <Route path="/admin/vans" element={<ProtectedRoute role="admin"><PageLayout><AdminVans/></PageLayout></ProtectedRoute>} />
               <Route path="/admin/customers" element={<ProtectedRoute role="admin"><PageLayout role="admin" title="Van Customer Records"><VanCustomers/></PageLayout></ProtectedRoute>} />
-              <Route path="/van/inventory" element={<ProtectedRoute role="attendant"><PageLayout role="attendant"><VanInventory/></PageLayout></ProtectedRoute>} />
+              <Route path="/van/inventory" element={<ProtectedRoute role={['admin', 'attendant']}><PageLayout><VanInventory/></PageLayout></ProtectedRoute>} />
               <Route path="/admin/items" element={<ProtectedRoute role={['admin', 'manager']}><PageLayout><AdminItems/></PageLayout></ProtectedRoute>} />
               <Route path="/admin/restock-history" element={<ProtectedRoute role={['admin', 'manager']}><PageLayout><RestockHistory/></PageLayout></ProtectedRoute>} />
               <Route path="/admin/suppliers" element={<ProtectedRoute role="admin"><PageLayout role="admin" title="Suppliers Management"><AdminSuppliers/></PageLayout></ProtectedRoute>} />
