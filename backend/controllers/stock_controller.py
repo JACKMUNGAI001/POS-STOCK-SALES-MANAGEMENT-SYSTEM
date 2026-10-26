@@ -4,14 +4,13 @@ from services.stock_service import (
     get_low_stock_items, delete_stock, get_restock_history, 
     delete_restock_movement, update_restock_movement
 )
-from models.stock import ShopStock, StockBatch, StockMovement, EmptyCylinderStock, SaleCylinderReturn
-from models.sale import Sale
+from models.stock import ShopStock, StockBatch, StockMovement, EmptyCylinderStock
 from models.user import User
 from models.product import Item, Category
 from models.shop import Shop
 from extensions import db
 from flask_jwt_extended import get_jwt_identity
-from utils.auth_utils import get_shop_id_for_attendant
+from utils.auth_utils import get_shop_id_for_attendant, get_shop_id_for_manager
 from utils.timezone_utils import get_local_time
 
 def manager_can_restock(identity):
@@ -127,7 +126,7 @@ def low_stock_items_controller(threshold=2):
 
 def empty_cylinders_controller():
     identity = get_jwt_identity()
-    shop_id = get_shop_id_for_attendant() if identity.get("role") == "attendant" else request.args.get("shop_id", type=int)
+    shop_id = get_shop_id_for_attendant() if identity.get("role") == "attendant" else get_shop_id_for_manager() if identity.get("role") == "manager" else request.args.get("shop_id", type=int)
     query = db.session.query(EmptyCylinderStock, Item, ShopStock).join(Item, EmptyCylinderStock.item_id == Item.id).outerjoin(ShopStock, (ShopStock.shop_id == EmptyCylinderStock.shop_id) & (ShopStock.item_id == EmptyCylinderStock.item_id))
     if shop_id:
         query = query.filter(EmptyCylinderStock.shop_id == shop_id)
@@ -144,7 +143,7 @@ def empty_cylinders_controller():
 
 def add_empty_cylinders_controller():
     identity, data = get_jwt_identity(), request.get_json() or {}
-    shop_id = get_shop_id_for_attendant() if identity.get("role") == "attendant" else data.get("shop_id")
+    shop_id = get_shop_id_for_attendant() if identity.get("role") == "attendant" else get_shop_id_for_manager() if identity.get("role") == "manager" else data.get("shop_id")
     try:
         item_id, qty = int(data.get("item_id")), int(data.get("qty", 0))
     except (TypeError, ValueError):
@@ -165,50 +164,9 @@ def add_empty_cylinders_controller():
     db.session.commit()
     return jsonify({"msg": "Empty cylinders added", "qty": empty.quantity}), 201
 
-def outstanding_empty_cylinders_controller():
-    identity = get_jwt_identity()
-    shop_id = get_shop_id_for_attendant() if identity.get("role") == "attendant" else request.args.get("shop_id", type=int)
-    query = db.session.query(SaleCylinderReturn, Sale, Item, Shop).join(Sale, SaleCylinderReturn.sale_id == Sale.id).join(Item, SaleCylinderReturn.item_id == Item.id).join(Shop, Sale.shop_id == Shop.id).filter(SaleCylinderReturn.returned_qty < SaleCylinderReturn.sold_qty)
-    if shop_id:
-        query = query.filter(Sale.shop_id == shop_id)
-    records = query.order_by(SaleCylinderReturn.created_at.desc()).all()
-    return jsonify([{
-        "id": record.id, "sale_id": sale.id, "shop_id": sale.shop_id, "shop_name": shop.name,
-        "item_id": item.id, "item_name": item.name, "sold_qty": record.sold_qty,
-        "returned_qty": record.returned_qty, "outstanding_qty": record.sold_qty - record.returned_qty,
-        "customer_name": sale.customer_name or "Walk-in customer", "customer_phone": sale.customer_phone,
-        "created_at": record.created_at.isoformat(),
-    } for record, sale, item, shop in records]), 200
-
-def receive_outstanding_empty_cylinder_controller(record_id):
-    identity, data = get_jwt_identity(), request.get_json() or {}
-    try:
-        qty = int(data.get("qty", 0))
-    except (TypeError, ValueError):
-        qty = 0
-    record = SaleCylinderReturn.query.get(record_id)
-    if not record or qty <= 0:
-        return jsonify({"msg": "A valid outstanding record and positive quantity are required"}), 400
-    sale = Sale.query.get(record.sale_id)
-    if identity.get("role") == "attendant" and get_shop_id_for_attendant() != sale.shop_id:
-        return jsonify({"msg": "You can only receive cylinders for your shop"}), 403
-    outstanding = record.sold_qty - record.returned_qty
-    if qty > outstanding:
-        return jsonify({"msg": "Received cylinders cannot exceed the outstanding quantity"}), 400
-    empty = EmptyCylinderStock.query.filter_by(shop_id=sale.shop_id, item_id=record.item_id).first()
-    if not empty:
-        empty = EmptyCylinderStock(shop_id=sale.shop_id, item_id=record.item_id, quantity=0)
-        db.session.add(empty)
-    record.returned_qty += qty
-    empty.quantity += qty
-    empty.updated_at = get_local_time()
-    db.session.add(StockMovement(shop_id=sale.shop_id, item_id=record.item_id, movement_type="empty_cylinder_return", qty=qty, user_id=identity.get("id"), reference=f"Outstanding cylinder return for sale {sale.id}", created_at=get_local_time()))
-    db.session.commit()
-    return jsonify({"msg": "Returned empty cylinders received", "outstanding_qty": record.sold_qty - record.returned_qty}), 200
-
 def refill_empty_cylinders_controller():
     identity, data = get_jwt_identity(), request.get_json() or {}
-    shop_id = get_shop_id_for_attendant() if identity.get("role") == "attendant" else data.get("shop_id")
+    shop_id = get_shop_id_for_attendant() if identity.get("role") == "attendant" else get_shop_id_for_manager() if identity.get("role") == "manager" else data.get("shop_id")
     item_id, qty = data.get("item_id"), int(data.get("qty", 0))
     buy_price = data.get("buy_price")
     if buy_price is not None:

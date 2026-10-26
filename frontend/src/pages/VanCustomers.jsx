@@ -81,10 +81,12 @@ export default function VanCustomers() {
         <div><h2 className="text-xl font-black">{selected.name}</h2><p className="text-gray-500">{selected.phone}</p></div>
         <div className="sm:text-right"><p>{selected.sale_count} van sales · Total {currency(selected.total_sales)}</p><p className="font-bold">Credit owed: {currency(selected.outstanding_balance)}</p></div>
       </div>
-      <h3 className="font-bold mb-2">Van sale history</h3>
+      <h3 className="font-bold mb-2">Customer empty-cylinder collections ({selected.collection_count || 0})</h3>
+      {selected.collections?.length ? selected.collections.map(collection => <article key={collection.id} className="border-t dark:border-gray-700 py-3 flex flex-wrap gap-x-4 gap-y-1 text-sm"><strong>{collection.quantity} × {collection.item_name}</strong><span>Collected by van {collection.van_registration}</span><span className="text-gray-500">{new Date(collection.created_at).toLocaleString()}</span></article>) : <p className="mb-4 text-sm text-gray-500">No empty cylinders have been collected from this customer.</p>}
+      <h3 className="font-bold mb-2 mt-5">Van sale history ({selected.sale_count})</h3>
       {selected.sales.length ? selected.sales.map(sale => <article key={sale.id} className="border-t dark:border-gray-700 py-3 space-y-1">
         <div className="flex flex-wrap gap-x-4 font-semibold"><span>Sale #{sale.id}</span><span>{sale.van_registration || sale.shop_name}</span><span>{sale.sale_type === 'credit' ? `Credit · ${sale.status} · Owes ${currency(Math.max(0, sale.total_amount - sale.paid_amount))}` : `Regular · ${sale.payment_type || 'Paid'}`}</span><span>{currency(sale.total_amount)}</span><span>{new Date(sale.created_at).toLocaleString()}</span></div>
-        <p className="text-sm text-gray-600 dark:text-gray-300">{sale.items.map(item => `${item.item_name}: ${item.qty} × ${currency(item.unit_price)}; ${item.returned_empty_qty || 0} empty returned`).join(' · ')}</p>
+        <p className="text-sm text-gray-600 dark:text-gray-300">{sale.items.map(item => `${item.item_name}: ${item.qty} × ${currency(item.unit_price)}`).join(' · ')}</p>
       </article>) : <p className="text-gray-500">No recorded van purchases.</p>}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mt-4 text-sm"><span className="text-gray-500">Page {selected.page} of {Math.max(1, selected.pages)}</span><div className="flex gap-2"><button disabled={selected.page <= 1} onClick={() => openCustomer(selected, selected.page - 1)} className="px-3 py-2 border rounded-lg disabled:opacity-40">Previous</button><button disabled={selected.page >= selected.pages} onClick={() => openCustomer(selected, selected.page + 1)} className="px-3 py-2 border rounded-lg disabled:opacity-40">Next</button></div></div>
     </section>}

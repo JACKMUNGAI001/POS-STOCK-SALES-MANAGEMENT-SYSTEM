@@ -56,6 +56,7 @@ class VanStockMovement(db.Model):
     quantity = db.Column(db.Integer, nullable=False)
     unit_cost = db.Column(db.Numeric(12, 2), nullable=False, default=0)
     supplier_id = db.Column(db.Integer, db.ForeignKey("suppliers.id"), nullable=True, index=True)
+    customer_id = db.Column(db.Integer, db.ForeignKey("customers.id"), nullable=True, index=True)
     reference = db.Column(db.String(255))
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
     created_at = db.Column(db.DateTime, default=get_local_time, nullable=False)

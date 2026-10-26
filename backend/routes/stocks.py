@@ -5,8 +5,7 @@ from controllers.stock_controller import (
     low_stock_items_controller, delete_stock_controller, 
     get_restock_history_controller, delete_restock_controller,
     update_restock_controller, empty_cylinders_controller, refill_empty_cylinders_controller,
-    add_empty_cylinders_controller, outstanding_empty_cylinders_controller,
-    receive_outstanding_empty_cylinder_controller, update_empty_cylinder_controller,
+    add_empty_cylinders_controller, update_empty_cylinder_controller,
     delete_empty_cylinder_controller
 )
 from flask_jwt_extended import jwt_required, get_jwt_identity
@@ -74,14 +73,6 @@ def refill_empty_cylinders(): return refill_empty_cylinders_controller()
 @bp.route("/empty-cylinders/add", methods=["POST"])
 @jwt_required()
 def add_empty_cylinders(): return add_empty_cylinders_controller()
-
-@bp.route("/empty-cylinders/outstanding", methods=["GET"])
-@jwt_required()
-def outstanding_empty_cylinders(): return outstanding_empty_cylinders_controller()
-
-@bp.route("/empty-cylinders/outstanding/<int:record_id>/return", methods=["POST"])
-@jwt_required()
-def receive_outstanding_empty_cylinder(record_id): return receive_outstanding_empty_cylinder_controller(record_id)
 
 @bp.route("/empty-cylinders/<int:shop_id>/<int:item_id>", methods=["PUT"])
 @jwt_required()

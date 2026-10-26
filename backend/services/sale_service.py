@@ -549,6 +549,16 @@ def update_sale(sale_id, user_id, items, payment_type, sale_type="standard", cus
             raise ValueError("Van sales cannot be edited; delete and re-record the sale to preserve van stock history")
 
         with db.session.begin_nested():
+            existing_cylinder_returns = SaleCylinderReturn.query.filter_by(sale_id=sale_id).all()
+            for return_row in existing_cylinder_returns:
+                if return_row.returned_qty:
+                    empty_stock = EmptyCylinderStock.query.filter_by(shop_id=sale.shop_id, item_id=return_row.item_id).first()
+                    if not empty_stock or empty_stock.quantity < return_row.returned_qty:
+                        raise ValueError("This sale cannot be edited because its exchanged cylinders have already been refilled")
+                    empty_stock.quantity -= return_row.returned_qty
+                    empty_stock.updated_at = get_local_time()
+                db.session.delete(return_row)
+
             # 1. Revert old stock levels
             for item in sale.items:
                 stock = ShopStock.query.filter_by(shop_id=sale.shop_id, item_id=item.item_id).first()
@@ -630,6 +640,24 @@ def update_sale(sale_id, user_id, items, payment_type, sale_type="standard", cus
                 db.session.add(mv)
                 
                 total += unit_price * qty_to_sell
+
+            updated_quantities = {}
+            for sale_item in new_sale_items:
+                updated_quantities[sale_item.item_id] = updated_quantities.get(sale_item.item_id, 0) + sale_item.qty
+            for item_id, sold_qty in updated_quantities.items():
+                item = Item.query.get(item_id)
+                category = Category.query.get(item.category_id) if item else None
+                if not category or "gas" not in category.name.lower():
+                    continue
+                empty_stock = EmptyCylinderStock.query.filter_by(shop_id=sale.shop_id, item_id=item_id).first()
+                if not empty_stock:
+                    empty_stock = EmptyCylinderStock(shop_id=sale.shop_id, item_id=item_id, quantity=0)
+                    db.session.add(empty_stock)
+                empty_stock.quantity += sold_qty
+                empty_stock.updated_at = get_local_time()
+                db.session.add(SaleCylinderReturn(
+                    sale_id=sale.id, item_id=item_id, sold_qty=sold_qty, returned_qty=sold_qty,
+                ))
 
             # 4. Update sale record
             sale.total_amount = total

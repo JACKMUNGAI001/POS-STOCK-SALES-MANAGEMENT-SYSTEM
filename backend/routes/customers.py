@@ -7,6 +7,8 @@ from sqlalchemy.orm import selectinload
 from extensions import db
 from models.customer import Customer
 from models.sale import Sale
+from models.van import Van, VanStockMovement
+from models.product import Item
 from services.sale_service import _serialize_sales_bulk
 
 
@@ -83,12 +85,30 @@ def customer_record(customer_id):
     total = sales_query.count()
     sales = sales_query.offset((page - 1) * per_page).limit(per_page).all()
     serialized = _serialize_sales_bulk(sales)
+    collection_query = db.session.query(VanStockMovement, Item, Van).join(
+        Item, Item.id == VanStockMovement.item_id,
+    ).join(Van, Van.id == VanStockMovement.van_id).filter(
+        VanStockMovement.customer_id == customer.id,
+        VanStockMovement.tenant_id == identity.get("tenant_id"),
+        VanStockMovement.movement_type == "customer_empty_collection",
+    ).order_by(VanStockMovement.created_at.desc(), VanStockMovement.id.desc())
+    collection_count = collection_query.count()
+    collections = collection_query.offset((page - 1) * per_page).limit(per_page).all()
     return jsonify({
         "id": customer.id,
         "name": customer.name,
         "phone": customer.phone,
         "created_at": customer.created_at.isoformat(),
         "sales": serialized,
+        "collections": [{
+            "id": movement.id,
+            "item_name": item.name,
+            "quantity": movement.quantity,
+            "van_registration": van.registration_number,
+            "created_at": movement.created_at.isoformat(),
+        } for movement, item, van in collections],
+        "collection_count": collection_count,
+        "collection_pages": ceil(collection_count / per_page) if collection_count else 0,
         "sale_count": total,
         "total_sales": float(db.session.query(func.coalesce(func.sum(Sale.total_amount), 0)).filter_by(
             customer_id=customer.id, tenant_id=identity.get("tenant_id"), operation_type="van").scalar() or 0),
@@ -97,5 +117,6 @@ def customer_record(customer_id):
         ), 0)).filter_by(customer_id=customer.id, tenant_id=identity.get("tenant_id"), operation_type="van").scalar() or 0),
         "page": page,
         "per_page": per_page,
-        "pages": ceil(total / per_page) if total else 0,
+        "pages": max(ceil(total / per_page) if total else 0,
+                     ceil(collection_count / per_page) if collection_count else 0),
     }), 200

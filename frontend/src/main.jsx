@@ -45,7 +45,6 @@ const LowStockItems = React.lazy(() => import('./pages/LowStockItems'))
 const RestockHistory = React.lazy(() => import('./pages/RestockHistory'))
 const GlobalInventory = React.lazy(() => import('./pages/GlobalInventory'))
 const EmptyCylinders = React.lazy(() => import('./pages/EmptyCylinders'))
-const OutstandingEmptyCylinders = React.lazy(() => import('./pages/OutstandingEmptyCylinders'))
 
 function LoadingFallback() {
   return (
@@ -111,8 +110,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
               {/* Manager Protected */}
               <Route path="/manager" element={<ProtectedRoute role="manager"><PageLayout role="manager"><ManagerDashboard/></PageLayout></ProtectedRoute>} />
               <Route path="/global-inventory" element={<ProtectedRoute role={['admin','manager']}><PageLayout><GlobalInventory/></PageLayout></ProtectedRoute>} />
-              <Route path="/empty-cylinders" element={<ProtectedRoute role={['attendant','manager','admin']}><PageLayout><EmptyCylinders/></PageLayout></ProtectedRoute>} />
-              <Route path="/empty-cylinders/outstanding" element={<ProtectedRoute role={['attendant','manager','admin']}><PageLayout><OutstandingEmptyCylinders/></PageLayout></ProtectedRoute>} />
+              <Route path="/empty-cylinders" element={<ProtectedRoute role={['manager','admin']}><PageLayout><EmptyCylinders/></PageLayout></ProtectedRoute>} />
               
               {/* Filtered Detail Views (Shared) */}
               <Route path="/attendant/sales" element={<ProtectedRoute><PageLayout><TodaysSales /></PageLayout></ProtectedRoute>} />

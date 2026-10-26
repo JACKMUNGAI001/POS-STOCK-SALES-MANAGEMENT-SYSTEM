@@ -61,7 +61,7 @@ def van_empty_cylinders(van_id):
     van = Van.query.filter_by(id=van_id, tenant_id=identity.get("tenant_id")).first()
     if not van or identity.get("role") == "manager" or (identity.get("role") == "attendant" and van.attendant_id != identity.get("id")):
         return jsonify({"msg": "Van not found"}), 404
-    rows = VanEmptyCylinderStock.query.filter_by(van_id=van_id).all()
+    rows = VanEmptyCylinderStock.query.filter_by(van_id=van_id).filter(VanEmptyCylinderStock.quantity > 0).all()
     return jsonify([{"item_id": r.item_id, "item_name": Item.query.get(r.item_id).name, "quantity": r.quantity} for r in rows])
 
 @bp.post("/<int:van_id>/empty-cylinders/collect")
@@ -105,7 +105,7 @@ def collect_van_empty_cylinders(van_id):
     db.session.add(VanStockMovement(
         tenant_id=van.tenant_id, van_id=van.id, item_id=item_id,
         movement_type="customer_empty_collection", quantity=quantity, unit_cost=0,
-        reference=f"Customer: {customer.name} ({customer.phone})", user_id=identity.get("id"),
+        customer_id=customer.id, reference=f"Customer: {customer.name} ({customer.phone})", user_id=identity.get("id"),
     ))
     db.session.commit()
     return jsonify({"msg": "Customer empties recorded", "quantity": empty.quantity}), 201
@@ -250,6 +250,8 @@ def van_reconciliation(van_id):
     ).filter(Sale.id.in_(sale_ids)).one()
     sold_count = db.session.query(func.coalesce(func.sum(SaleItem.qty), 0)).filter(SaleItem.sale_id.in_(sale_ids)).scalar() or 0
     customer_empty_count = db.session.query(func.coalesce(func.sum(SaleCylinderReturn.returned_qty), 0)).filter(SaleCylinderReturn.sale_id.in_(sale_ids)).scalar() or 0
+    customer_empty_count += db.session.query(func.coalesce(func.sum(VanStockMovement.quantity), 0)).filter_by(
+        van_id=van.id, movement_type="customer_empty_collection").scalar() or 0
     refill_rows = VanStockMovement.query.filter_by(van_id=van.id, movement_type="depot_refill").all()
     refilled_count = sum(r.quantity for r in refill_rows)
     depot_empty_count = sum(int((r.reference or "").rsplit(":", 1)[-1].strip()) for r in refill_rows if "Empties returned to depot:" in (r.reference or ""))
