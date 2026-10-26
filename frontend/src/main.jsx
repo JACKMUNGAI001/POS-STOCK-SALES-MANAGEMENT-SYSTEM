@@ -80,6 +80,9 @@ ReactDOM.createRoot(document.getElementById('root')).render(
               <Route path="/admin" element={<ProtectedRoute role="admin"><PageLayout><AdminDashboard/></PageLayout></ProtectedRoute>} />
               <Route path="/admin/shops" element={<ProtectedRoute role={['admin', 'manager']}><PageLayout><AdminShops/></PageLayout></ProtectedRoute>} />
               <Route path="/admin/vans" element={<ProtectedRoute role="admin"><PageLayout><AdminVans/></PageLayout></ProtectedRoute>} />
+              <Route path="/admin/vans/refills" element={<ProtectedRoute role="admin"><PageLayout role="admin" title="Van Depot Refills"><AdminVans/></PageLayout></ProtectedRoute>} />
+              <Route path="/admin/vans/transfers" element={<ProtectedRoute role="admin"><PageLayout role="admin" title="Van to Van Transfers"><AdminVans/></PageLayout></ProtectedRoute>} />
+              <Route path="/admin/vans/sales" element={<ProtectedRoute role="admin"><PageLayout role="admin" title="Van Sales & Reconciliation"><AdminVans/></PageLayout></ProtectedRoute>} />
               <Route path="/admin/customers" element={<ProtectedRoute role="admin"><PageLayout role="admin" title="Van Customer Records"><VanCustomers/></PageLayout></ProtectedRoute>} />
               <Route path="/van/inventory" element={<ProtectedRoute role={['admin', 'attendant']}><PageLayout><VanInventory/></PageLayout></ProtectedRoute>} />
               <Route path="/admin/items" element={<ProtectedRoute role={['admin', 'manager']}><PageLayout><AdminItems/></PageLayout></ProtectedRoute>} />

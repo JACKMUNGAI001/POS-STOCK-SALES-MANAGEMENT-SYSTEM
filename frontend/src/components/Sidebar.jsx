@@ -59,6 +59,9 @@ export default function Sidebar({ role: propRole, onClose }){
             <NavLink to="/admin/credit-sales" icon={CreditCard}>Credit Sales</NavLink>
             <NavLink to="/admin/shops" icon={Store}>Shops</NavLink>
             <NavLink to="/admin/vans" icon={Truck}>Vans & Attendants</NavLink>
+            <NavLink to="/admin/vans/refills" icon={Cylinder}>Van Depot Refills</NavLink>
+            <NavLink to="/admin/vans/transfers" icon={ArrowLeftRight}>Van to Van Transfers</NavLink>
+            <NavLink to="/admin/vans/sales" icon={BarChart3}>Van Sales & Reconciliation</NavLink>
             <NavLink to="/van/inventory" icon={Truck}>Van Inventory & Collections</NavLink>
             <NavLink to="/admin/customers" icon={UsersRound}>Van Customers</NavLink>
             <NavLink to="/admin/items" icon={Package}>Products</NavLink>
@@ -68,7 +71,7 @@ export default function Sidebar({ role: propRole, onClose }){
             <NavLink to="/admin/analysis" icon={BarChart3}>Sales Analysis</NavLink>
             <NavLink to="/admin/pnl" icon={TrendingUp}>Profit & Loss</NavLink>
             <NavLink to="/admin/expenses" icon={Receipt}>Expenses</NavLink>
-            <NavLink to="/transfers" icon={ArrowLeftRight}>Van Transfers</NavLink>
+            <NavLink to="/transfers" icon={ArrowLeftRight}>Stock Transfers</NavLink>
           </>
         ) : role === 'manager' ? (
           <>
@@ -80,7 +83,7 @@ export default function Sidebar({ role: propRole, onClose }){
             <NavLink to="/admin/shops" icon={Store}>Shops</NavLink>
             <NavLink to="/empty-cylinders" icon={Cylinder}>Empty Cylinders</NavLink>
             <NavLink to="/admin/restock-history" icon={Truck}>Restock History</NavLink>
-            <NavLink to="/transfers" icon={ArrowLeftRight}>Van Transfers</NavLink>
+            <NavLink to="/transfers" icon={ArrowLeftRight}>Stock Transfers</NavLink>
             <NavLink to="/admin/expenses" icon={Receipt}>Expenses</NavLink>
           </>
         ) : (
