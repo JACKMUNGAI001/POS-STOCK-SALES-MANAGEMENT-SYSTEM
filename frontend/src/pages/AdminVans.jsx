@@ -48,7 +48,12 @@ export default function AdminVans() {
   }
   const loadRefill = async (e) => {
     e.preventDefault()
-    try { await api.post(`/vans/${refill.van_id}/refills`, { item_id: refill.item_id, supplier_id: refill.supplier_id, quantity: refill.quantity, empty_quantity: refill.empty_quantity, unit_cost: refill.unit_cost }); alert('Depot refill recorded'); setRefill({ van_id: '', item_id: '', supplier_id: '', quantity: '', empty_quantity: '', unit_cost: '' }); await refresh() }
+    try {
+      const { data } = await api.post(`/vans/${refill.van_id}/refills`, { item_id: refill.item_id, supplier_id: refill.supplier_id, quantity: refill.quantity, empty_quantity: refill.empty_quantity, unit_cost: refill.unit_cost })
+      alert(`Depot refill recorded. ${data.remaining_empty_quantity} empty cylinder(s) remain on the van awaiting refill.`)
+      setRefill(current => ({ ...current, quantity: '', empty_quantity: '', unit_cost: '' }))
+      await refresh()
+    }
     catch (err) { alert(err.response?.data?.msg || err.message) }
   }
   const moveStock = async (e) => {
@@ -97,7 +102,8 @@ export default function AdminVans() {
         <select required value={refill.item_id} onChange={e => setRefill({ ...refill, item_id: e.target.value })} className="w-full p-3 rounded-xl border dark:bg-gray-900"><option value="">Cylinder product</option>{items.map(i => <option key={i.id} value={i.id}>{i.name}</option>)}</select>
         <select required value={refill.supplier_id} onChange={e => setRefill({ ...refill, supplier_id: e.target.value })} className="w-full p-3 rounded-xl border dark:bg-gray-900"><option value="">Choose gas supplier / refiller</option>{suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</select>
         <input required type="number" min="1" placeholder="Filled quantity from depot" value={refill.quantity} onChange={e => setRefill({ ...refill, quantity: e.target.value })} className="w-full p-3 rounded-xl border dark:bg-gray-900"/>
-        <div><input type="number" min="0" max={availableRefillEmpties} placeholder="Empty cylinders handed to depot" value={refill.empty_quantity} onChange={e => setRefill({ ...refill, empty_quantity: e.target.value })} className="w-full p-3 rounded-xl border dark:bg-gray-900"/><p className="mt-1 text-xs text-gray-500">Available on this van: {availableRefillEmpties}</p></div>
+        <div><input type="number" min="0" max={availableRefillEmpties} placeholder="Empty cylinders handed to depot" value={refill.empty_quantity} onChange={e => setRefill({ ...refill, empty_quantity: e.target.value })} className="w-full p-3 rounded-xl border dark:bg-gray-900"/><p className="mt-1 text-xs text-gray-500">Currently on this van: {availableRefillEmpties}. Remaining after this refill: {Math.max(0, availableRefillEmpties - (Number(refill.empty_quantity) || 0))}.</p></div>
+        {refill.van_id && (vanEmpties[refill.van_id] || []).length > 0 && <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm dark:border-amber-900 dark:bg-amber-900/20"><strong>Empties still on this van</strong>{vanEmpties[refill.van_id].map(row => <div key={row.item_id} className="mt-1 flex justify-between gap-3"><span>{row.item_name}</span><strong>{row.quantity}</strong></div>)}</div>}
         <input type="number" min="0" step="0.01" placeholder="Cost per refill" value={refill.unit_cost} onChange={e => setRefill({ ...refill, unit_cost: e.target.value })} className="w-full p-3 rounded-xl border dark:bg-gray-900"/>
         <button className="w-full bg-blue-600 text-white p-3 rounded-xl font-bold">Record depot refill</button>
       </form>}

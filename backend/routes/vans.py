@@ -140,7 +140,7 @@ def load_refill(van_id):
         row = VanStock(tenant_id=van.tenant_id, van_id=van.id, item_id=item_id, quantity=0, buy_price=cost)
         db.session.add(row)
     prior = row.quantity
-    empty = VanEmptyCylinderStock.query.filter_by(van_id=van.id, item_id=item_id).first()
+    empty = VanEmptyCylinderStock.query.filter_by(van_id=van.id, item_id=item_id).with_for_update().first()
     if empty_qty and (not empty or empty.quantity < empty_qty):
         return jsonify({"msg": "Van does not have enough returned empty cylinders for this refill"}), 400
     if empty_qty:
@@ -153,7 +153,9 @@ def load_refill(van_id):
                                     supplier_id=supplier.id,
                                     reference=f"Empties returned to depot: {empty_qty}", user_id=identity.get("id")))
     db.session.commit()
-    return jsonify({"msg": "Refill recorded", "quantity": row.quantity, "empty_quantity": empty.quantity if empty else 0}), 201
+    return jsonify({"msg": "Refill recorded", "quantity": row.quantity,
+                    "empty_quantity": empty.quantity if empty else 0,
+                    "remaining_empty_quantity": empty.quantity if empty else 0}), 201
 
 @bp.post("/transfers")
 @jwt_required()
