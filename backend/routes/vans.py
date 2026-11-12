@@ -2,6 +2,7 @@ from flask import Blueprint, jsonify, request
 from flask_jwt_extended import get_jwt_identity, jwt_required
 from math import ceil
 from sqlalchemy import func, case
+from sqlalchemy.orm import aliased
 from extensions import db
 from models.van import Van, VanStock, VanEmptyCylinderStock, VanTransfer, VanStockMovement
 from models.product import Item, Category
@@ -30,10 +31,50 @@ def _view(van):
 @jwt_required()
 def list_vans():
     identity = get_jwt_identity() or {}
-    query = Van.query.filter_by(tenant_id=identity.get("tenant_id"))
+    query = db.session.query(Van, User.name).outerjoin(User, User.id == Van.attendant_id).filter(
+        Van.tenant_id == identity.get("tenant_id"))
     if identity.get("role") == "attendant":
-        query = query.filter_by(attendant_id=identity.get("id"))
-    return jsonify([_view(v) for v in query.order_by(Van.registration_number).all()])
+        query = query.filter(Van.attendant_id == identity.get("id"))
+    rows = query.order_by(Van.registration_number).all()
+    return jsonify([{"id": van.id, "registration_number": van.registration_number,
+                     "attendant_id": van.attendant_id, "attendant_name": attendant_name}
+                    for van, attendant_name in rows])
+
+@bp.get("/inventory-summary")
+@jwt_required()
+def van_inventory_summary():
+    identity, error = _admin()
+    if error: return error
+    tenant_id = identity.get("tenant_id")
+    van_rows = db.session.query(Van, User.name).outerjoin(
+        User, User.id == Van.attendant_id
+    ).filter(Van.tenant_id == tenant_id).order_by(Van.registration_number).all()
+    stock_rows = db.session.query(VanStock.van_id, VanStock.item_id, Item.name,
+                                  VanStock.quantity, VanStock.buy_price).join(
+        Item, Item.id == VanStock.item_id
+    ).filter(VanStock.tenant_id == tenant_id).all()
+    empty_rows = db.session.query(VanEmptyCylinderStock.van_id, VanEmptyCylinderStock.item_id,
+                                  Item.name, VanEmptyCylinderStock.quantity).join(
+        Item, Item.id == VanEmptyCylinderStock.item_id
+    ).filter(VanEmptyCylinderStock.tenant_id == tenant_id,
+             VanEmptyCylinderStock.quantity > 0).all()
+    stocks_by_van = {}
+    for van_id, item_id, item_name, quantity, buy_price in stock_rows:
+        stocks_by_van.setdefault(van_id, []).append({
+            "item_id": item_id, "item_name": item_name, "quantity": quantity,
+            "buy_price": float(buy_price or 0),
+        })
+    empties_by_van = {}
+    for van_id, item_id, item_name, quantity in empty_rows:
+        empties_by_van.setdefault(van_id, []).append({
+            "item_id": item_id, "item_name": item_name, "quantity": quantity,
+        })
+    return jsonify([{
+        "id": van.id, "registration_number": van.registration_number,
+        "attendant_id": van.attendant_id, "attendant_name": attendant_name,
+        "stock": stocks_by_van.get(van.id, []),
+        "empty_cylinders": empties_by_van.get(van.id, []),
+    } for van, attendant_name in van_rows])
 
 @bp.get("/mine")
 @jwt_required()
@@ -50,9 +91,11 @@ def van_stock(van_id):
     van = Van.query.filter_by(id=van_id, tenant_id=identity.get("tenant_id")).first()
     if not van or identity.get("role") == "manager" or (identity.get("role") == "attendant" and van.attendant_id != identity.get("id")):
         return jsonify({"msg": "Van not found"}), 404
-    rows = VanStock.query.filter_by(van_id=van.id).all()
-    return jsonify([{"item_id": r.item_id, "item_name": Item.query.get(r.item_id).name,
-                     "quantity": r.quantity, "buy_price": float(r.buy_price or 0)} for r in rows])
+    rows = db.session.query(VanStock, Item.name).join(Item, Item.id == VanStock.item_id).filter(
+        VanStock.van_id == van.id).order_by(Item.name.asc()).all()
+    return jsonify([{"item_id": stock.item_id, "item_name": item_name,
+                     "quantity": stock.quantity, "buy_price": float(stock.buy_price or 0)}
+                    for stock, item_name in rows])
 
 @bp.get("/<int:van_id>/empty-cylinders")
 @jwt_required()
@@ -61,8 +104,11 @@ def van_empty_cylinders(van_id):
     van = Van.query.filter_by(id=van_id, tenant_id=identity.get("tenant_id")).first()
     if not van or identity.get("role") == "manager" or (identity.get("role") == "attendant" and van.attendant_id != identity.get("id")):
         return jsonify({"msg": "Van not found"}), 404
-    rows = VanEmptyCylinderStock.query.filter_by(van_id=van_id).filter(VanEmptyCylinderStock.quantity > 0).all()
-    return jsonify([{"item_id": r.item_id, "item_name": Item.query.get(r.item_id).name, "quantity": r.quantity} for r in rows])
+    rows = db.session.query(VanEmptyCylinderStock, Item.name).join(
+        Item, Item.id == VanEmptyCylinderStock.item_id
+    ).filter(VanEmptyCylinderStock.van_id == van_id, VanEmptyCylinderStock.quantity > 0).order_by(Item.name.asc()).all()
+    return jsonify([{"item_id": stock.item_id, "item_name": item_name, "quantity": stock.quantity}
+                    for stock, item_name in rows])
 
 @bp.post("/<int:van_id>/empty-cylinders/collect")
 @jwt_required()
@@ -198,19 +244,31 @@ def transfer_van_stock():
 @jwt_required()
 def list_van_transfers():
     identity = get_jwt_identity() or {}
-    by_id = {v.id: v for v in Van.query.filter_by(tenant_id=identity.get("tenant_id")).all()}
+    SourceVan = aliased(Van)
+    TargetVan = aliased(Van)
     query = VanTransfer.query.filter_by(tenant_id=identity.get("tenant_id"))
     if identity.get("role") == "attendant":
-        assigned = {v.id for v in by_id.values() if v.attendant_id == identity.get("id")}
-        query = query.filter((VanTransfer.from_van_id.in_(assigned)) | (VanTransfer.to_van_id.in_(assigned))) if assigned else query.filter(VanTransfer.id == -1)
+        assigned_van_ids = db.session.query(Van.id).filter_by(
+            tenant_id=identity.get("tenant_id"), attendant_id=identity.get("id"))
+        query = query.filter((VanTransfer.from_van_id.in_(assigned_van_ids)) |
+                             (VanTransfer.to_van_id.in_(assigned_van_ids)))
     page = max(1, min(1000000, request.args.get("page", 1, type=int)))
     per_page = max(1, min(100, request.args.get("per_page", 20, type=int)))
     total = query.count()
-    rows = query.order_by(VanTransfer.created_at.desc(), VanTransfer.id.desc()).offset((page - 1) * per_page).limit(per_page).all()
-    items = [{"id": r.id, "from_van": by_id[r.from_van_id].registration_number,
-                     "to_van": by_id[r.to_van_id].registration_number, "item_id": r.item_id,
-                     "item_name": Item.query.get(r.item_id).name, "quantity": r.quantity,
-                     "created_at": r.created_at.isoformat()} for r in rows]
+    rows = db.session.query(VanTransfer, SourceVan.registration_number, TargetVan.registration_number,
+                            Item.name).join(SourceVan, SourceVan.id == VanTransfer.from_van_id).join(
+        TargetVan, TargetVan.id == VanTransfer.to_van_id).join(Item, Item.id == VanTransfer.item_id
+    ).filter(VanTransfer.tenant_id == identity.get("tenant_id"))
+    if identity.get("role") == "attendant":
+        rows = rows.filter((SourceVan.attendant_id == identity.get("id")) |
+                           (TargetVan.attendant_id == identity.get("id")))
+    rows = rows.order_by(VanTransfer.created_at.desc(), VanTransfer.id.desc()).offset(
+        (page - 1) * per_page).limit(per_page).all()
+    items = [{"id": transfer.id, "from_van": from_registration,
+              "to_van": to_registration, "item_id": transfer.item_id,
+              "item_name": item_name, "quantity": transfer.quantity,
+              "created_at": transfer.created_at.isoformat()}
+             for transfer, from_registration, to_registration, item_name in rows]
     return jsonify({"items": items, "total": total, "page": page, "per_page": per_page,
                     "pages": ceil(total / per_page) if total else 0})
 
@@ -223,16 +281,21 @@ def van_movements(van_id):
         return jsonify({"msg": "Van not found"}), 404
     page = max(1, min(1000000, request.args.get("page", 1, type=int)))
     per_page = max(1, min(100, request.args.get("per_page", 20, type=int)))
-    query = VanStockMovement.query.filter_by(van_id=van_id).order_by(VanStockMovement.created_at.desc(), VanStockMovement.id.desc())
+    query = db.session.query(VanStockMovement, Item.name, Supplier.name).join(
+        Item, Item.id == VanStockMovement.item_id
+    ).outerjoin(Supplier, Supplier.id == VanStockMovement.supplier_id).filter(
+        VanStockMovement.van_id == van_id)
     total = query.count()
-    rows = query.offset((page - 1) * per_page).limit(per_page).all()
-    supplier_ids = {r.supplier_id for r in rows if r.supplier_id}
-    suppliers = {s.id: s for s in Supplier.query.filter(Supplier.id.in_(supplier_ids)).all()} if supplier_ids else {}
-    items = [{"id": r.id, "item_name": Item.query.get(r.item_id).name, "movement_type": r.movement_type,
-                     "quantity": r.quantity, "unit_cost": float(r.unit_cost or 0), "reference": r.reference,
-                     "supplier_id": r.supplier_id, "supplier_name": suppliers[r.supplier_id].name if r.supplier_id in suppliers else None,
-                     "empty_quantity": int((r.reference or "").rsplit(":", 1)[-1].strip()) if r.movement_type == "depot_refill" and "Empties returned to depot:" in (r.reference or "") else 0,
-                     "created_at": r.created_at.isoformat()} for r in rows]
+    rows = query.order_by(VanStockMovement.created_at.desc(), VanStockMovement.id.desc()).offset(
+        (page - 1) * per_page).limit(per_page).all()
+    items = [{"id": movement.id, "item_name": item_name, "movement_type": movement.movement_type,
+              "quantity": movement.quantity, "unit_cost": float(movement.unit_cost or 0),
+              "reference": movement.reference, "supplier_id": movement.supplier_id,
+              "supplier_name": supplier_name,
+              "empty_quantity": int((movement.reference or "").rsplit(":", 1)[-1].strip())
+              if movement.movement_type == "depot_refill" and "Empties returned to depot:" in (movement.reference or "") else 0,
+              "created_at": movement.created_at.isoformat()}
+             for movement, item_name, supplier_name in rows]
     return jsonify({"items": items, "total": total, "page": page, "per_page": per_page,
                     "pages": ceil(total / per_page) if total else 0})
 

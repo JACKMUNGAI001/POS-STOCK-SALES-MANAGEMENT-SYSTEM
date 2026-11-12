@@ -26,11 +26,10 @@ export default function AdminVans() {
   const [movementMeta, setMovementMeta] = useState({ page: 1, pages: 0, total: 0 })
   const [reconciliation, setReconciliation] = useState(null)
   const refresh = async () => {
-    const [v, a, t, s] = await Promise.all([api.get('/vans'), api.get('/admin/attendants/all'), api.get(`/vans/transfers?page=${transferPage}&per_page=20`), api.get('/suppliers')])
+    const [v, a, t, s] = await Promise.all([api.get('/vans/inventory-summary'), api.get('/admin/attendants/all'), api.get(`/vans/transfers?page=${transferPage}&per_page=20`), api.get('/suppliers')])
     setVans(v.data); setAttendants(a.data.filter(x => x.is_verified)); setTransferRows(t.data.items || []); setTransferMeta({ pages: t.data.pages || 0, total: t.data.total || 0 }); setSuppliers(s.data)
-    const stocks = await Promise.all(v.data.map(async van => [van.id, (await api.get(`/vans/${van.id}/stock`)).data]))
-    const empties = await Promise.all(v.data.map(async van => [van.id, (await api.get(`/vans/${van.id}/empty-cylinders`)).data]))
-    setVanStocks(Object.fromEntries(stocks)); setVanEmpties(Object.fromEntries(empties))
+    setVanStocks(Object.fromEntries(v.data.map(van => [van.id, van.stock || []])))
+    setVanEmpties(Object.fromEntries(v.data.map(van => [van.id, van.empty_cylinders || []])))
   }
   useEffect(() => { refresh().catch(() => {}); api.get('/items').then(r => setItems(r.data.filter(item => item.category_name?.toLowerCase().includes('gas')))).catch(() => {}) }, [])
   const addVan = async (e) => {
