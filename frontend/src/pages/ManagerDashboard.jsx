@@ -26,12 +26,9 @@ export default function ManagerDashboard(){
 
     const fetchDashboardData = async () => {
         try {
-            const [salesRes, stockSummaryRes] = await Promise.all([
-              api.get('/reports/sales-summary'),
-              api.get('/reports/stock-summary'),
-            ]);
-            setSalesSummary(salesRes.data);
-            setStockSummary(stockSummaryRes.data);
+            const { data } = await api.get('/reports/dashboard-summary');
+            setSalesSummary(data.sales);
+            setStockSummary(data.stock_summary);
 
         } catch (err) {
             console.error('Error fetching dashboard data:', err);

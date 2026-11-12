@@ -152,28 +152,31 @@ def get_daily_sales(shop_id=None):
 def get_sales_summary(shop_id=None):
     now = get_local_time()
     today_start = datetime.combine(now.date(), datetime.min.time())
-    
     starts = {
         "today": today_start,
         "week": today_start - timedelta(days=now.weekday()),
         "month": datetime(now.year, now.month, 1),
         "year": datetime(now.year, 1, 1),
     }
-    result = {}
+    expressions = []
+    keys = []
+    paid_sale = or_(Sale.sale_type != 'credit', Sale.status == 'paid')
     for period, start in starts.items():
-        channels = {}
-        for operation_type in ("shop", "van"):
-            query = db.session.query(func.sum(Sale.total_amount)).filter(
-                Sale.operation_type == operation_type,
-                Sale.created_at >= start,
-                or_(Sale.sale_type != 'credit', Sale.status == 'paid'),
-            )
-            if shop_id:
-                query = query.filter(Sale.shop_id == shop_id)
-            channels[operation_type] = float(query.scalar() or 0)
-        result[period] = channels["shop"] + channels["van"]
-        result[f"{period}_shop"] = channels["shop"]
-        result[f"{period}_van"] = channels["van"]
+        for channel in ("shop", "van"):
+            expressions.append(func.coalesce(func.sum(case((
+                (Sale.operation_type == channel) & (Sale.created_at >= start) & paid_sale,
+                Sale.total_amount,
+            ), else_=0)), 0))
+            keys.append((period, channel))
+    query = db.session.query(*expressions)
+    if shop_id:
+        query = query.filter(Sale.shop_id == shop_id)
+    row = query.one()
+    result = {}
+    for index, (period, channel) in enumerate(keys):
+        result[f"{period}_{channel}"] = float(row[index] or 0)
+    for period in starts:
+        result[period] = result[f"{period}_shop"] + result[f"{period}_van"]
     return result
 
 def get_stock_summary_by_category(shop_id=None):
@@ -268,26 +271,19 @@ def get_credits_summary(shop_id=None, van_id=None):
     """Return summary metrics for credit sales."""
     try:
         channel = 'van' if van_id else 'shop'
-        q_total_credit = db.session.query(func.sum(Sale.total_amount)).filter(Sale.sale_type == 'credit', Sale.operation_type == channel)
-        q_total_outstanding = db.session.query(func.sum((Sale.total_amount - Sale.paid_amount))).filter(Sale.sale_type == 'credit', Sale.status != 'paid', Sale.operation_type == channel)
-        q_outstanding_count = db.session.query(func.count(Sale.id)).filter(Sale.sale_type == 'credit', Sale.status != 'paid', Sale.operation_type == channel)
-        q_paid_count = db.session.query(func.count(Sale.id)).filter(Sale.sale_type == 'credit', Sale.status == 'paid', Sale.operation_type == channel)
-
+        is_credit = Sale.sale_type == 'credit'
+        is_outstanding = is_credit & (Sale.status != 'paid')
+        row = db.session.query(
+            func.coalesce(func.sum(case((is_credit, Sale.total_amount), else_=0)), 0),
+            func.coalesce(func.sum(case((is_outstanding, Sale.total_amount - Sale.paid_amount), else_=0)), 0),
+            func.coalesce(func.sum(case((is_outstanding, 1), else_=0)), 0),
+            func.coalesce(func.sum(case((is_credit & (Sale.status == 'paid'), 1), else_=0)), 0),
+        ).filter(Sale.operation_type == channel)
         if shop_id:
-            q_total_credit = q_total_credit.filter(Sale.shop_id == shop_id)
-            q_total_outstanding = q_total_outstanding.filter(Sale.shop_id == shop_id)
-            q_outstanding_count = q_outstanding_count.filter(Sale.shop_id == shop_id)
-            q_paid_count = q_paid_count.filter(Sale.shop_id == shop_id)
+            row = row.filter(Sale.shop_id == shop_id)
         if van_id:
-            q_total_credit = q_total_credit.filter(Sale.van_id == van_id)
-            q_total_outstanding = q_total_outstanding.filter(Sale.van_id == van_id)
-            q_outstanding_count = q_outstanding_count.filter(Sale.van_id == van_id)
-            q_paid_count = q_paid_count.filter(Sale.van_id == van_id)
-
-        total_credit = float(q_total_credit.scalar() or 0)
-        total_outstanding = float(q_total_outstanding.scalar() or 0)
-        outstanding_count = int(q_outstanding_count.scalar() or 0)
-        paid_count = int(q_paid_count.scalar() or 0)
+            row = row.filter(Sale.van_id == van_id)
+        total_credit, total_outstanding, outstanding_count, paid_count = row.one()
 
         return {
             "total_credit_sales": total_credit,
@@ -371,7 +367,7 @@ def get_all_credit_sales(shop_id=None, van_id=None):
         })
     return results
     
-def get_dashboard_summary(shop_id=None):
+def get_dashboard_summary(shop_id=None, include_credits=False):
     """
     Unified dashboard summary to reduce multiple API calls on login.
     """
@@ -388,13 +384,14 @@ def get_dashboard_summary(shop_id=None):
         low_stock_query = low_stock_query.filter(ShopStock.shop_id == shop_id)
     low_stock_count = low_stock_query.scalar() or 0
 
-    credits_summary = get_credits_summary(shop_id)
+    credits_summary = get_credits_summary(shop_id) if include_credits else None
 
     return {
         "sales": sales,
         "stock_summary": stock_summary,
         "financial_overview": financial,
         "low_stock_count": int(low_stock_count),
+        "credits_summary": credits_summary,
     }
 
 def get_product_sales_analysis(year=None, month=None, shop_id=None, period=None):

@@ -21,7 +21,6 @@ export default function AdminDashboard(){
 
   useEffect(()=> {
     api.get('/shops').then(res=>setShops(res.data)).catch(()=>{})
-    fetchPendingAttendants()
     fetchAllAttendants()
     fetchManagers()
     
@@ -31,23 +30,15 @@ export default function AdminDashboard(){
         setSalesSummary(data.sales);
         setFinancialOverview(data.financial_overview);
         setStockSummary(data.stock_summary);
+        setCreditsSummary(data.credits_summary);
     }).catch(err => console.error("Error fetching summary", err));
-      fetchCreditsSummary()
   },[])
-
-  const fetchPendingAttendants = async () => {
-    try {
-      const response = await api.get('/admin/attendants/pending')
-      setPendingAttendants(response.data)
-    } catch (err) {
-      console.error('Error fetching pending attendants')
-    }
-  }
 
   const fetchAllAttendants = async () => {
     try {
       const res = await api.get('/admin/attendants/all')
       setAllAttendants(res.data)
+      setPendingAttendants(res.data.filter(attendant => !attendant.is_verified))
     } catch (err) {
       console.error('Error fetching all attendants')
     }
@@ -79,18 +70,10 @@ export default function AdminDashboard(){
     }
   }
   
-    const fetchCreditsSummary = async () => {
-      try{
-        const res = await api.get('/reports/credits-summary')
-        setCreditsSummary(res.data)
-      }catch(err){ console.error('Error fetching credits summary', err) }
-    }
-
   const handleVerifyAttendant = async (userId) => {
     try {
       await api.patch(`/admin/attendants/${userId}/verify`, { is_verified: true })
       alert('Attendant verified. Assign them to a van from Van Management.')
-      fetchPendingAttendants()
       fetchAllAttendants()
     } catch (err) {
       alert(`Error verifying attendant: ${err.response?.data?.msg || err.message}`)

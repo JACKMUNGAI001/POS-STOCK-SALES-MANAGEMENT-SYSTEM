@@ -29,7 +29,7 @@ def dashboard_summary_controller():
     elif user_identity.get("role") == "manager":
         shop_id = get_shop_id_for_manager()
     
-    summary = get_dashboard_summary(shop_id)
+    summary = get_dashboard_summary(shop_id, include_credits=user_identity.get("role") == "admin")
     return jsonify(summary), 200
 
 def pnl_report_controller():

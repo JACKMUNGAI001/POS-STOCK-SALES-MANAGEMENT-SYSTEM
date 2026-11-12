@@ -58,11 +58,7 @@ def login():
     if u.role == "attendant" and not u.is_verified:
         return jsonify({"msg":"account not verified by admin"}), 403
 
-    shop_name = None
-    if u.shop_id:
-        shop = Shop.query.get(u.shop_id)
-        if shop:
-            shop_name = shop.name
+    shop_name = u.shop.name if u.shop else None
 
     token = create_access_token(identity={"id":u.id,"role":u.role, "shop_id": u.shop_id, "tenant_id": u.tenant_id})
     return jsonify({"access_token": token, "user": {"id":u.id,"name":u.name,"email":u.email,"role":u.role, "tenant_id": u.tenant_id, "shop_id": u.shop_id, "shop_name": shop_name}}), 200

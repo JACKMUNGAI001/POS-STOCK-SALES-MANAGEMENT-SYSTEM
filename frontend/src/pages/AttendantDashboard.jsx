@@ -11,7 +11,6 @@ export default function AttendantDashboard(){
   const { user } = useContext(AuthContext)
   const { searchQuery } = useContext(SearchContext)
   const [shopStock, setShopStock] = useState([]);
-  const [availableItems, setAvailableItems] = useState([]);
   const [salesSummary, setSalesSummary] = useState(null);
   const [lowStockCount, setLowStockCount] = useState(0);
   const [stockSummary, setStockSummary] = useState(null);
@@ -20,8 +19,6 @@ export default function AttendantDashboard(){
     if (user?.shop_id) {
       fetchShopStock(user.shop_id);
     }
-    fetchAvailableItems();
-
     const fetchDashboardData = async () => {
         try {
             // Unified dashboard summary call
@@ -46,15 +43,6 @@ export default function AttendantDashboard(){
       setShopStock(response.data);
     } catch (err) {
       console.error('Error fetching shop stock');
-    }
-  };
-
-  const fetchAvailableItems = async () => {
-    try {
-      const response = await api.get("/items");
-      setAvailableItems(response.data);
-    } catch (err) {
-      console.error("Error fetching available items");
     }
   };
 

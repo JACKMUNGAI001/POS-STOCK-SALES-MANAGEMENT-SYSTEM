@@ -4,6 +4,7 @@ from models.user import User
 from models.shop import Shop
 from services.tenant_service import get_or_create_default_tenant, create_tenant, resolve_tenant_by_context
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import joinedload
 
 
 def register_user(name, email, password, role="attendant", shop_id=None, tenant_id=None, tenant_name=None, tenant_slug=None):
@@ -46,7 +47,7 @@ def register_user(name, email, password, role="attendant", shop_id=None, tenant_
 
 
 def get_user_by_email(email, tenant_id=None):
-    query = User.query.filter_by(email=email)
+    query = User.query.options(joinedload(User.shop)).filter_by(email=email)
     if tenant_id is not None:
         query = query.filter_by(tenant_id=tenant_id)
     return query.first()
